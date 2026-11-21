@@ -3,6 +3,8 @@
 Gym management web app for a single gym (multi-gym is out of scope for v1).
 Members get open gym access and/or class access depending on their plan.
 
+The gym is in Lebanon: gym time zone `Asia/Beirut` (observes DST), currency USD.
+
 ## Roles
 - **Member** — buys a plan, checks in, books classes, sees own history.
 - **Trainer** — sees and manages own classes, marks attendance.
@@ -20,7 +22,7 @@ A plan defines what a membership grants.
 | `billing` | `RECURRING` or `ONE_TIME` |
 | `intervalMonths` | Billing period for recurring plans: 1, 3, 6, or 12 |
 | `durationDays` | For one-time plans (e.g. day pass = 1) |
-| `priceCents` | Price per billing period in integer cents |
+| `priceCents` | Price per billing period in integer cents (USD) |
 | `maxMembers` | People covered by one membership (1 = single, 2 = couple) |
 | `active` | Whether new members can buy it (old plans stay valid for existing members) |
 
@@ -66,7 +68,7 @@ Day Pass (1 day open access), Class Pack (add-on, see below).
   first-month promo code.
 
 ### Seed plans (demo and tests)
-Prices are placeholders in EUR, editable by the admin; not final.
+Prices are placeholders in USD, editable by the admin; not final.
 
 | Plan | Type | Open access | Classes | Billing | Price |
 |---|---|---|---|---|---|
@@ -96,6 +98,49 @@ Prices are placeholders in EUR, editable by the admin; not final.
 - Failed payment → `PAST_DUE` with a grace period (3 days), then access denied.
 - Member can cancel (effective at period end) and freeze (admin-approved, max 30 days).
 - Stripe webhooks drive status changes; handlers verify signatures and are idempotent.
+- **Memberships are non-refundable.** There is no refund feature or refund request
+  flow for members. Stripe cancellations take effect at period end with no proration.
+  Refunds or disputes made outside the app (Stripe dashboard, chargebacks) arrive via
+  webhook and are only recorded, so revenue stays accurate; they do not change the
+  membership automatically.
+
+**Membership usability.** A membership grants access at time `t` only if it is
+`ACTIVE` and `currentPeriodStart <= t < currentPeriodEnd`, or `PAST_DUE` and
+`t < pastDueSince + 3 days`. `FROZEN`, `CANCELLED`, and `EXPIRED` never grant access.
+Booking also requires that a non-auto-renewing membership (including a credit pack)
+is still valid when the class starts. Access never depends on a background job having run.
+
+**Overdue cleanup.** Purchase, manual membership creation, invite acceptance, and trial
+start first end the person's non-auto-renewing memberships whose period is over
+(`EXPIRED`, or `CANCELLED` for a Stripe subscription cancelled at period end, plus
+`endedAt`) in the same transaction, then apply the one-base-membership rule.
+Auto-renewing Stripe subscriptions are only ended by Stripe webhooks.
+
+### Manual payments
+Admins can record payments made outside Stripe.
+- Methods: `CASH`, `WHISH`, `OMT`, `BANK_TRANSFER`, `OTHER`, with an optional
+  `reference` (transaction number), the recording admin, and a note. The same
+  method + reference cannot be recorded twice. Notes must not contain personal data.
+- The amount always comes from the plan's price on the server.
+- A first manual payment creates the membership (no Stripe). Manual memberships
+  never auto-renew and end at period end unless a new payment extends them.
+- Extension applies only to recurring plans, while the membership has not ended:
+  the new period starts at the later of the current period end and now.
+  One-time plans (Day Pass, Class Pack, Free Trial) are never extended; buying
+  one again always creates a new membership.
+- Every manual payment is audit-logged.
+
+### Manual payment corrections
+- An admin can **void** a manual payment recorded by mistake (status `VOIDED`,
+  reason required). Payments are never deleted.
+- In exceptional cases an admin can record a **manual refund** with a reason.
+  This is an admin correction, not a member-facing refund flow.
+- Only the latest valid manual payment of a membership can be voided or fully
+  refunded. Voiding or a full refund rolls the membership's period end back to
+  that payment's period start, or ends the membership (`CANCELLED`) if it was the
+  activating payment. A partial refund changes amounts only.
+- Stripe payments are never voided or refunded in the app.
+- All corrections are audit-logged.
 
 ### 3. Check-in & occupancy
 - Each member has a QR code in the app containing a short-lived signed token
@@ -105,7 +150,8 @@ Prices are placeholders in EUR, editable by the admin; not final.
   allowed / denied + reason (e.g. "Class-only: no booked class right now").
 - One open check-in per member at a time; check-out optional.
 - Open check-ins auto-close after 4 hours.
-- Live occupancy = open check-ins; shown to members as a busy level.
+- Live occupancy = open check-ins that have not passed their auto-close time;
+  shown to members as a busy level (occupancy relative to the gym capacity set by the admin).
 
 ### 4. Classes
 - Admin/trainer creates a class template (name, trainer, capacity, duration,
@@ -120,6 +166,13 @@ Prices are placeholders in EUR, editable by the admin; not final.
   - 3 no-shows within 30 days → booking blocked for 7 days.
 - Full session → waitlist; when a spot frees up, the first waitlisted member is
   promoted automatically and notified.
+- Waitlist and credits: joining a waitlist deducts 1 credit (reserved); it is
+  refunded if the person is never promoted or cancels in time. Unlimited plans
+  use no credits.
+- Waitlist cutoff: auto-promotion stops 1 hour before start, and nobody can join
+  a waitlist after that. A spot freed later stays open for direct booking until
+  start. When the session starts, remaining waitlisted bookings are cancelled
+  and their reserved credit is refunded.
 - Booking statuses: `BOOKED`, `WAITLISTED`, `CANCELLED`, `LATE_CANCELLED`,
   `ATTENDED`, `NO_SHOW`.
 - Checking in for a booked class marks it `ATTENDED` and counts as gym entry.
@@ -134,26 +187,40 @@ Prices are placeholders in EUR, editable by the admin; not final.
 - Class fill rate and no-show rate.
 - Memberships expiring soon.
 
-## Data model (draft — refine in plan mode)
-- `User` (role)
-- `Plan`
-- `Membership` (owner user, plan, status, currentPeriodStart/End, freeze dates, stripeSubscriptionId)
-- `MembershipMember` (membership, user, joinedAt) — who is covered; supports couples plans
-- `MembershipInvite` (membership, email, token, expiresAt, status)
-- `Payment` (membership, amountCents, status, stripe ids)
-- `StripeEvent` (processed webhook event ids, for idempotency)
-- `CheckIn` (user, enteredAt, exitedAt, source: QR | CLASS)
-- `ClassTemplate` (name, trainer, capacity, durationMin, recurrence)
-- `ClassSession` (template, startsAt, capacity, status)
-- `Booking` (session, user, status, waitlistPosition)
-- `CreditLedger` (membership, delta, reason, bookingId) — balance = sum of deltas
-- `AuditLog` (actor user, action, target, details, createdAt)
+## Data model
+Source of truth: `prisma/schema.prisma`. CHECK constraints and partial unique
+indexes live as raw SQL in the migrations.
+
+- `User`, `Session`, `Account`, `Verification` — Better Auth tables; `User` adds
+  role, phone, Stripe customer id, booking block, and `anonymizedAt` (GDPR).
+- `GymSettings` (singleton: name, time zone, capacity) and `OpeningHours` (per weekday).
+- `Plan` — as described under Plans, plus `isTrial`, `sortOrder`, Stripe product/price ids.
+- `Membership` (owner, plan, source: STRIPE | MANUAL | TRIAL, status, period dates,
+  cancelAtPeriodEnd, pastDueSince, endedAt, Stripe ids, createdBy for manual).
+- `MembershipMember` (membership, user, role OWNER | PARTNER, plan type, joinedAt,
+  endedAt) — who is covered; one active base seat per person.
+- `MembershipInvite` (membership, email, hashed token, status, expiresAt).
+- `MembershipFreeze` (dates, status, requester, admin decision).
+- `TrialRedemption` (user, membership, hashed email/phone) — one trial per person.
+- `Payment` (membership, payer, method, status, amount and refunded amount,
+  covered period, Stripe ids, manual reference/recorder/note, void and refund details).
+- `StripeEvent` (processed webhook event ids, for idempotency).
+- `CheckIn` (user, membership, booking for class entries, source QR | CLASS,
+  enteredAt, autoCloseAt, exitedAt, close reason) — one open check-in per member.
+- `ClassTemplate` (name, trainer, capacity, duration, weekdays, local start time, validity).
+- `ClassSession` (template, trainer, startsAt/endsAt, capacity, status).
+- `Booking` (session, user, status, cancel reason) — waitlist order by creation time.
+- `CreditLedger` (membership, user, delta, reason, booking) — balance = sum of deltas;
+  at most one debit and one refund per booking.
+- `AuditLog` (actor, action, target, details without personal data, createdAt).
 
 ## Key business rules
 - Access is checked on the server for every check-in and booking.
 - A session can never exceed capacity, even with concurrent bookings
   (transaction + row lock on the session).
 - Credit balance never goes negative; every change is a ledger entry.
+- Membership usability is checked from stored dates and status at request time
+  (see Memberships & billing), never only by background jobs.
 - All times stored in UTC; gym time zone used for display and recurrence.
 - Money stored as integer cents.
 
@@ -164,8 +231,9 @@ Prices are placeholders in EUR, editable by the admin; not final.
   whatever ID is sent.
 - Prices always come from the server's plan record, never from the client.
 - Invite and reset tokens are single-use, expire, and are stored hashed.
-- Sensitive admin actions (role changes, freezes, manual membership edits) are
-  written to an audit log.
+- Sensitive admin actions (role changes, freezes, manual membership edits, manual
+  payments, voids, manual refunds) are written to an audit log in the same
+  transaction as the change.
 - Account deletion (GDPR): personal data is removed or anonymized; payment and
   attendance records are kept anonymized for the gym's accounting.
 - Secrets only in environment variables; never logged. Card data is handled

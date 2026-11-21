@@ -1,0 +1,612 @@
+// Partial unique indexes and CHECK constraints are not expressible in Prisma.
+// They live in raw SQL at the end of each migration (first set: 20261120194318_init).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  MEMBER
+  TRAINER
+  ADMIN
+
+  @@map("role")
+}
+
+enum PlanType {
+  BASE
+  ADDON
+
+  @@map("plan_type")
+}
+
+enum ClassAccess {
+  NONE
+  UNLIMITED
+  CREDITS
+
+  @@map("class_access")
+}
+
+enum BillingType {
+  RECURRING
+  ONE_TIME
+
+  @@map("billing_type")
+}
+
+enum MembershipStatus {
+  ACTIVE
+  PAST_DUE
+  FROZEN
+  CANCELLED
+  EXPIRED
+
+  @@map("membership_status")
+}
+
+enum MembershipSource {
+  STRIPE
+  MANUAL
+  TRIAL
+
+  @@map("membership_source")
+}
+
+enum MemberRole {
+  OWNER
+  PARTNER
+
+  @@map("member_role")
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+
+  @@map("invite_status")
+}
+
+enum FreezeStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  CANCELLED
+  COMPLETED
+
+  @@map("freeze_status")
+}
+
+enum PaymentMethod {
+  STRIPE
+  CASH
+  WHISH
+  OMT
+  BANK_TRANSFER
+  OTHER
+
+  @@map("payment_method")
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  PARTIALLY_REFUNDED
+  REFUNDED
+  DISPUTED
+  VOIDED
+
+  @@map("payment_status")
+}
+
+enum CheckInSource {
+  QR
+  CLASS
+
+  @@map("check_in_source")
+}
+
+enum CheckInCloseReason {
+  MANUAL
+  AUTO_TIMEOUT
+  CLASS_ENDED
+  SUPERSEDED
+
+  @@map("check_in_close_reason")
+}
+
+enum SessionStatus {
+  SCHEDULED
+  CANCELLED
+  COMPLETED
+
+  @@map("session_status")
+}
+
+enum BookingStatus {
+  BOOKED
+  WAITLISTED
+  CANCELLED
+  LATE_CANCELLED
+  ATTENDED
+  NO_SHOW
+
+  @@map("booking_status")
+}
+
+enum BookingCancelReason {
+  MEMBER
+  ADMIN
+  SESSION_CANCELLED
+  WAITLIST_EXPIRED
+
+  @@map("booking_cancel_reason")
+}
+
+enum CreditReason {
+  GRANT
+  BOOKING_DEBIT
+  CANCELLATION_REFUND
+  WAITLIST_REFUND
+  ADMIN_ADJUSTMENT
+  EXPIRY
+
+  @@map("credit_reason")
+}
+
+// ─── Auth (Better Auth core schema) ──────────────────────────────────────────
+
+model User {
+  id                  String    @id
+  name                String
+  email               String    @unique
+  emailVerified       Boolean   @default(false) @map("email_verified")
+  image               String?
+  role                Role      @default(MEMBER)
+  phone               String?
+  phoneVerified       Boolean   @default(false) @map("phone_verified")
+  stripeCustomerId    String?   @unique @map("stripe_customer_id")
+  bookingBlockedUntil DateTime? @map("booking_blocked_until") @db.Timestamptz(3)
+  anonymizedAt        DateTime? @map("anonymized_at") @db.Timestamptz(3)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  sessions           Session[]
+  accounts           Account[]
+  ownedMemberships   Membership[]       @relation("MembershipOwner")
+  createdMemberships Membership[]       @relation("MembershipCreatedBy")
+  membershipSeats    MembershipMember[]
+  invitesSent        MembershipInvite[] @relation("InviteSender")
+  invitesAccepted    MembershipInvite[] @relation("InviteAcceptor")
+  freezesRequested   MembershipFreeze[] @relation("FreezeRequester")
+  freezesDecided     MembershipFreeze[] @relation("FreezeDecider")
+  trialRedemption    TrialRedemption?
+  payments           Payment[]          @relation("PaymentPayer")
+  paymentsRecorded   Payment[]          @relation("PaymentRecorder")
+  paymentsVoided     Payment[]          @relation("PaymentVoider")
+  paymentsRefunded   Payment[]          @relation("PaymentRefunder")
+  checkIns           CheckIn[]          @relation("CheckInUser")
+  checkInsScanned    CheckIn[]          @relation("CheckInScanner")
+  classTemplates     ClassTemplate[]
+  classSessions      ClassSession[]
+  bookings           Booking[]
+  creditEntries      CreditLedger[]     @relation("CreditUser")
+  creditAdjustments  CreditLedger[]     @relation("CreditActor")
+  auditLogs          AuditLog[]
+
+  @@index([role])
+  @@map("users")
+}
+
+model Session {
+  id        String   @id
+  token     String   @unique
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id")
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.Timestamptz(3)
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.Timestamptz(3)
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+// ─── Gym configuration ───────────────────────────────────────────────────────
+
+model GymSettings {
+  id        Int      @id @default(1)
+  name      String
+  timeZone  String   @map("time_zone")
+  capacity  Int
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("gym_settings")
+}
+
+model OpeningHours {
+  id          String @id @default(uuid(7)) @db.Uuid
+  weekday     Int    @unique
+  opensAtMin  Int    @map("opens_at_min")
+  closesAtMin Int    @map("closes_at_min")
+
+  @@map("opening_hours")
+}
+
+// ─── Plans ───────────────────────────────────────────────────────────────────
+
+model Plan {
+  id              String      @id @default(uuid(7)) @db.Uuid
+  slug            String      @unique
+  name            String
+  description     String?
+  type            PlanType
+  openAccess      Boolean     @map("open_access")
+  classAccess     ClassAccess @map("class_access")
+  credits         Int?
+  billing         BillingType
+  intervalMonths  Int?        @map("interval_months")
+  durationDays    Int?        @map("duration_days")
+  priceCents      Int         @map("price_cents")
+  currency        String      @default("usd") @db.Char(3)
+  maxMembers      Int         @default(1) @map("max_members")
+  isTrial         Boolean     @default(false) @map("is_trial")
+  active          Boolean     @default(true)
+  sortOrder       Int         @default(0) @map("sort_order")
+  stripeProductId String?     @map("stripe_product_id")
+  stripePriceId   String?     @unique @map("stripe_price_id")
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  memberships Membership[]
+
+  @@index([active, type, sortOrder])
+  @@map("plans")
+}
+
+// ─── Memberships ─────────────────────────────────────────────────────────────
+
+model Membership {
+  id                      String           @id @default(uuid(7)) @db.Uuid
+  ownerId                 String           @map("owner_id")
+  planId                  String           @map("plan_id") @db.Uuid
+  source                  MembershipSource
+  status                  MembershipStatus
+  createdById             String?          @map("created_by_id")
+  startsAt                DateTime         @map("starts_at") @db.Timestamptz(3)
+  currentPeriodStart      DateTime         @map("current_period_start") @db.Timestamptz(3)
+  currentPeriodEnd        DateTime         @map("current_period_end") @db.Timestamptz(3)
+  cancelAtPeriodEnd       Boolean          @default(false) @map("cancel_at_period_end")
+  cancelledAt             DateTime?        @map("cancelled_at") @db.Timestamptz(3)
+  endedAt                 DateTime?        @map("ended_at") @db.Timestamptz(3)
+  pastDueSince            DateTime?        @map("past_due_since") @db.Timestamptz(3)
+  stripeSubscriptionId    String?          @unique @map("stripe_subscription_id")
+  stripeCheckoutSessionId String?          @unique @map("stripe_checkout_session_id")
+  stripeLastEventAt       DateTime?        @map("stripe_last_event_at") @db.Timestamptz(3)
+  createdAt               DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt               DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  owner     User  @relation("MembershipOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  plan      Plan  @relation(fields: [planId], references: [id], onDelete: Restrict)
+  createdBy User? @relation("MembershipCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  members         MembershipMember[]
+  invites         MembershipInvite[]
+  freezes         MembershipFreeze[]
+  payments        Payment[]
+  creditEntries   CreditLedger[]
+  checkIns        CheckIn[]
+  trialRedemption TrialRedemption?
+
+  @@index([ownerId])
+  @@index([planId])
+  @@index([status, currentPeriodEnd])
+  @@map("memberships")
+}
+
+model MembershipMember {
+  id           String     @id @default(uuid(7)) @db.Uuid
+  membershipId String     @map("membership_id") @db.Uuid
+  userId       String     @map("user_id")
+  role         MemberRole
+  planType     PlanType   @map("plan_type")
+  joinedAt     DateTime   @default(now()) @map("joined_at") @db.Timestamptz(3)
+  endedAt      DateTime?  @map("ended_at") @db.Timestamptz(3)
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Restrict)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, endedAt])
+  @@index([membershipId])
+  @@map("membership_members")
+}
+
+model MembershipInvite {
+  id           String       @id @default(uuid(7)) @db.Uuid
+  membershipId String       @map("membership_id") @db.Uuid
+  email        String
+  tokenHash    String       @unique @map("token_hash")
+  invitedById  String       @map("invited_by_id")
+  status       InviteStatus @default(PENDING)
+  expiresAt    DateTime     @map("expires_at") @db.Timestamptz(3)
+  acceptedAt   DateTime?    @map("accepted_at") @db.Timestamptz(3)
+  acceptedById String?      @map("accepted_by_id")
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  invitedBy  User       @relation("InviteSender", fields: [invitedById], references: [id], onDelete: Restrict)
+  acceptedBy User?      @relation("InviteAcceptor", fields: [acceptedById], references: [id], onDelete: Restrict)
+
+  @@index([email])
+  @@index([membershipId, status])
+  @@map("membership_invites")
+}
+
+model MembershipFreeze {
+  id            String       @id @default(uuid(7)) @db.Uuid
+  membershipId  String       @map("membership_id") @db.Uuid
+  requestedById String       @map("requested_by_id")
+  startsAt      DateTime     @map("starts_at") @db.Timestamptz(3)
+  endsAt        DateTime     @map("ends_at") @db.Timestamptz(3)
+  status        FreezeStatus @default(REQUESTED)
+  decidedById   String?      @map("decided_by_id")
+  decidedAt     DateTime?    @map("decided_at") @db.Timestamptz(3)
+  reason        String?
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  membership  Membership @relation(fields: [membershipId], references: [id], onDelete: Restrict)
+  requestedBy User       @relation("FreezeRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  decidedBy   User?      @relation("FreezeDecider", fields: [decidedById], references: [id], onDelete: Restrict)
+
+  @@index([membershipId, status])
+  @@map("membership_freezes")
+}
+
+model TrialRedemption {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  userId       String   @unique @map("user_id")
+  membershipId String   @unique @map("membership_id") @db.Uuid
+  emailHash    String   @unique @map("email_hash")
+  phoneHash    String?  @unique @map("phone_hash")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Restrict)
+
+  @@map("trial_redemptions")
+}
+
+// ─── Billing ─────────────────────────────────────────────────────────────────
+
+model Payment {
+  id                      String        @id @default(uuid(7)) @db.Uuid
+  membershipId            String?       @map("membership_id") @db.Uuid
+  userId                  String        @map("user_id")
+  method                  PaymentMethod
+  status                  PaymentStatus
+  amountCents             Int           @map("amount_cents")
+  amountRefundedCents     Int           @default(0) @map("amount_refunded_cents")
+  currency                String        @default("usd") @db.Char(3)
+  periodStart             DateTime?     @map("period_start") @db.Timestamptz(3)
+  periodEnd               DateTime?     @map("period_end") @db.Timestamptz(3)
+  paidAt                  DateTime?     @map("paid_at") @db.Timestamptz(3)
+  stripeInvoiceId         String?       @unique @map("stripe_invoice_id")
+  stripePaymentIntentId   String?       @unique @map("stripe_payment_intent_id")
+  stripeCheckoutSessionId String?       @unique @map("stripe_checkout_session_id")
+  reference               String?
+  recordedById            String?       @map("recorded_by_id")
+  note                    String?
+  voidedAt                DateTime?     @map("voided_at") @db.Timestamptz(3)
+  voidedById              String?       @map("voided_by_id")
+  voidReason              String?       @map("void_reason")
+  refundedAt              DateTime?     @map("refunded_at") @db.Timestamptz(3)
+  refundedById            String?       @map("refunded_by_id")
+  refundReason            String?       @map("refund_reason")
+  createdAt               DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt               DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  membership Membership? @relation(fields: [membershipId], references: [id], onDelete: Restrict)
+  user       User        @relation("PaymentPayer", fields: [userId], references: [id], onDelete: Restrict)
+  recordedBy User?       @relation("PaymentRecorder", fields: [recordedById], references: [id], onDelete: Restrict)
+  voidedBy   User?       @relation("PaymentVoider", fields: [voidedById], references: [id], onDelete: Restrict)
+  refundedBy User?       @relation("PaymentRefunder", fields: [refundedById], references: [id], onDelete: Restrict)
+
+  @@index([membershipId, createdAt])
+  @@index([userId])
+  @@index([status, paidAt])
+  @@index([method, paidAt])
+  @@map("payments")
+}
+
+model StripeEvent {
+  id              String   @id
+  type            String
+  stripeCreatedAt DateTime @map("stripe_created_at") @db.Timestamptz(3)
+  processedAt     DateTime @default(now()) @map("processed_at") @db.Timestamptz(3)
+
+  @@index([type, stripeCreatedAt])
+  @@map("stripe_events")
+}
+
+// ─── Check-in ────────────────────────────────────────────────────────────────
+
+model CheckIn {
+  id           String              @id @default(uuid(7)) @db.Uuid
+  userId       String              @map("user_id")
+  membershipId String              @map("membership_id") @db.Uuid
+  bookingId    String?             @unique @map("booking_id") @db.Uuid
+  source       CheckInSource
+  scannedById  String?             @map("scanned_by_id")
+  enteredAt    DateTime            @default(now()) @map("entered_at") @db.Timestamptz(3)
+  autoCloseAt  DateTime            @map("auto_close_at") @db.Timestamptz(3)
+  exitedAt     DateTime?           @map("exited_at") @db.Timestamptz(3)
+  closeReason  CheckInCloseReason? @map("close_reason")
+
+  user       User       @relation("CheckInUser", fields: [userId], references: [id], onDelete: Restrict)
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Restrict)
+  booking    Booking?   @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  scannedBy  User?      @relation("CheckInScanner", fields: [scannedById], references: [id], onDelete: Restrict)
+
+  @@index([enteredAt])
+  @@index([userId, enteredAt])
+  @@map("check_ins")
+}
+
+// ─── Classes ─────────────────────────────────────────────────────────────────
+
+model ClassTemplate {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  name          String
+  description   String?
+  trainerId     String    @map("trainer_id")
+  capacity      Int
+  durationMin   Int       @map("duration_min")
+  weekdays      Int[]
+  startMinLocal Int       @map("start_min_local")
+  validFrom     DateTime  @map("valid_from") @db.Timestamptz(3)
+  validUntil    DateTime? @map("valid_until") @db.Timestamptz(3)
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  trainer  User           @relation(fields: [trainerId], references: [id], onDelete: Restrict)
+  sessions ClassSession[]
+
+  @@index([trainerId])
+  @@index([active])
+  @@map("class_templates")
+}
+
+model ClassSession {
+  id           String        @id @default(uuid(7)) @db.Uuid
+  templateId   String        @map("template_id") @db.Uuid
+  trainerId    String        @map("trainer_id")
+  name         String
+  startsAt     DateTime      @map("starts_at") @db.Timestamptz(3)
+  endsAt       DateTime      @map("ends_at") @db.Timestamptz(3)
+  capacity     Int
+  status       SessionStatus @default(SCHEDULED)
+  cancelledAt  DateTime?     @map("cancelled_at") @db.Timestamptz(3)
+  cancelReason String?       @map("cancel_reason")
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  template ClassTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  trainer  User          @relation(fields: [trainerId], references: [id], onDelete: Restrict)
+  bookings Booking[]
+
+  @@unique([templateId, startsAt])
+  @@index([startsAt])
+  @@index([trainerId, startsAt])
+  @@map("class_sessions")
+}
+
+model Booking {
+  id           String               @id @default(uuid(7)) @db.Uuid
+  sessionId    String               @map("session_id") @db.Uuid
+  userId       String               @map("user_id")
+  status       BookingStatus
+  cancelReason BookingCancelReason? @map("cancel_reason")
+  promotedAt   DateTime?            @map("promoted_at") @db.Timestamptz(3)
+  cancelledAt  DateTime?            @map("cancelled_at") @db.Timestamptz(3)
+  attendedAt   DateTime?            @map("attended_at") @db.Timestamptz(3)
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  session       ClassSession   @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  checkIn       CheckIn?
+  creditEntries CreditLedger[]
+
+  @@index([sessionId, status, createdAt])
+  @@index([userId, status])
+  @@map("bookings")
+}
+
+model CreditLedger {
+  id           String       @id @default(uuid(7)) @db.Uuid
+  membershipId String       @map("membership_id") @db.Uuid
+  userId       String       @map("user_id")
+  delta        Int
+  reason       CreditReason
+  bookingId    String?      @map("booking_id") @db.Uuid
+  actorId      String?      @map("actor_id")
+  note         String?
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Restrict)
+  user       User       @relation("CreditUser", fields: [userId], references: [id], onDelete: Restrict)
+  booking    Booking?   @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  actor      User?      @relation("CreditActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@unique([bookingId, reason])
+  @@index([membershipId])
+  @@index([userId, createdAt])
+  @@map("credit_ledger")
+}
+
+// ─── Audit ───────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  actorId    String?  @map("actor_id")
+  action     String
+  targetType String   @map("target_type")
+  targetId   String   @map("target_id")
+  details    Json     @default("{}")
+  ipHash     String?  @map("ip_hash")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([targetType, targetId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}
