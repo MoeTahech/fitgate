@@ -13,7 +13,7 @@ docs bundled in `node_modules/next/dist/docs/`.
 
 | # | Decision |
 |---|---|
-| 1 | Dependencies approved (pinned exactly): `better-auth`, `@better-auth/prisma-adapter`, `zod`, `@upstash/redis`, `@upstash/ratelimit`, `nodemailer`, `server-only`; dev: `@types/nodemailer`, `vitest`. The Better Auth CLI runs via `npx auth@1.7.27` and is not installed. |
+| 1 | Dependencies approved (pinned exactly): `better-auth`, `@better-auth/prisma-adapter`, `zod`, `@upstash/redis`, `@upstash/ratelimit`, `nodemailer`, `server-only`; dev: `vitest`. `@types/nodemailer` dropped (nodemailer 10 ships its own types); `@types/node` bumped to 24.x (vitest 5 requires >= 22; runtime is Node 24). The Better Auth CLI runs via `npx auth@1.7.27` and is not installed. |
 | 2 | Development email: Mailpit container + nodemailer (SMTP). `EMAIL_TRANSPORT=console` as a fallback for machines without Docker. |
 | 3 | Add Vitest now. Tests cover the last-admin rule, invite acceptance, role guards, and the rate limiter, against the Docker database. |
 | 4 | If Redis is unavailable: allow the request, log an error, and fall back to an in-memory limiter per instance so limits still apply. |
