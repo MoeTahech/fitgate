@@ -26,11 +26,21 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
 - `npm run dev` / `npm run build` / `npm run start`
 - `npm run lint` (ESLint 9 flat config in `eslint.config.mjs`)
 - `npx tsc --noEmit` type check
-- `docker compose up -d` start local Postgres; `docker compose ps` status
+- `docker compose up -d` start local services (Postgres, Redis + SRH REST proxy
+  on 8079, Mailpit SMTP 1025 / UI http://localhost:8025); `docker compose ps` status
 - `npm run db:migrate` (`prisma migrate dev`), `npm run db:deploy` (prod migrations)
 - `npm run db:seed` seed plans, gym settings, opening hours (create-only, safe to re-run)
 - `npm run db:studio`; `npx prisma generate` (also runs on `postinstall`)
-- No test framework configured yet.
+- `npm test` (`vitest run`) / `npm run test:watch`. Needs Docker running and
+  `TEST_DATABASE_URL` (database name must end in `_test`).
+
+## Testing
+- Vitest, config in `vitest.config.mts`. Tests are colocated as `src/**/*.test.ts`;
+  shared setup and helpers live in `tests/`.
+- Global setup runs `prisma migrate deploy` against `TEST_DATABASE_URL` (creating
+  the database if missing); workers get it as `DATABASE_URL`. Test files run
+  sequentially and all tables are truncated before each file.
+- `server-only` is aliased to its empty module so server code can be imported.
 
 ## Architecture
 - `next.config.ts` enables `cacheComponents` and `partialPrefetching`; consult
