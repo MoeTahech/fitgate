@@ -17,7 +17,6 @@
     "@better-auth/prisma-adapter": "1.7.27",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
-    "@upstash/ratelimit": "2.2.1",
     "@upstash/redis": "1.41.0",
     "better-auth": "1.7.27",
     "next": "16.4.6",

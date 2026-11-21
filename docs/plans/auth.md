@@ -13,13 +13,14 @@ docs bundled in `node_modules/next/dist/docs/`.
 
 | # | Decision |
 |---|---|
-| 1 | Dependencies approved (pinned exactly): `better-auth`, `@better-auth/prisma-adapter`, `zod`, `@upstash/redis`, `@upstash/ratelimit`, `nodemailer`, `server-only`; dev: `vitest`. `@types/nodemailer` dropped (nodemailer 10 ships its own types); `@types/node` bumped to 24.x (vitest 5 requires >= 22; runtime is Node 24). The Better Auth CLI runs via `npx auth@1.7.27` and is not installed. |
+| 1 | Dependencies approved (pinned exactly): `better-auth`, `@better-auth/prisma-adapter`, `zod`, `@upstash/redis`, `nodemailer`, `server-only`; dev: `vitest`. `@upstash/ratelimit` dropped (see decision 8). `@types/nodemailer` dropped (nodemailer 10 ships its own types); `@types/node` bumped to 24.x (vitest 5 requires >= 22; runtime is Node 24). The Better Auth CLI runs via `npx auth@1.7.27` and is not installed. |
 | 2 | Development email: Mailpit container + nodemailer (SMTP). `EMAIL_TRANSPORT=console` as a fallback for machines without Docker. |
 | 3 | Add Vitest now. Tests cover the last-admin rule, invite acceptance, role guards, and the rate limiter, against the Docker database. |
 | 4 | If Redis is unavailable: allow the request, log an error, and fall back to an in-memory limiter per instance so limits still apply. |
 | 5 | Branch `feat/auth` from `main` (database schema already merged). |
 | 6 | No Better Auth admin plugin: its role changes can't run the last-admin check or write the audit row in our transaction. |
 | 7 | Sessions stay in Postgres (no Better Auth secondary storage); cookie cache off so revocations and role changes apply immediately. |
+| 8 | Own sliding-window limiter in Lua, run via `@upstash/redis` (`EVALSHA`, `EVAL` on `NOSCRIPT`). `@upstash/ratelimit` 2.2.1 prefixes its scripts with `#!lua flags=allow-key-locking`, an Upstash-only flag that Redis 7.4 and 8.10 reject, so it can't run against local Redis via SRH. |
 
 ## Constraints from the research
 
@@ -43,9 +44,9 @@ docs bundled in `node_modules/next/dist/docs/`.
   authorization.
 - `after()` from `next/server` runs work after the response, using `waitUntil` on Vercel.
 - Upstash recommends serverless-redis-http (SRH) to run `@upstash/redis` against a
-  local Redis. Image `hiett/serverless-redis-http` has only a `latest` tag. Its
-  support for the scripting commands `@upstash/ratelimit` uses is not documented
-  and must be verified first (step 2).
+  local Redis. Image `hiett/serverless-redis-http` has only a `latest` tag.
+  Verified in step 2: SRH passes `SCRIPT LOAD`, `EVALSHA` (with `NOSCRIPT`),
+  `EVAL`, `TIME`, and `PEXPIRE` through to Redis.
 - Unclear in the docs, to verify during implementation: whether Better Auth
   lowercases emails, whether secure cookies get the `__Secure-` prefix, and
   whether a sign-in attempt by an unverified user resends the verification email
@@ -181,8 +182,12 @@ UI: `/admin/trainers` (invite form, pending invites with revoke/resend).
 
 One helper: `src/lib/rate-limit.ts`.
 
-- Client: `@upstash/redis` + `@upstash/ratelimit` (sliding window), one
-  `Ratelimit` instance per policy, `ephemeralCache` enabled, `timeout: 1000` ms.
+- Client: `@upstash/redis` with one Lua sliding-window script (two fixed
+  buckets, weighted previous bucket, atomic check and increment), loaded once
+  and run with `EVALSHA`, falling back to `EVAL` on `NOSCRIPT`. Each policy has
+  one or more rules (limit, window). Requests time out after 1000 ms. A
+  per-instance in-memory cache of blocked identifiers until their reset time
+  saves Redis round trips.
 - Production: Upstash Redis. Local: `redis` + `srh` in compose. Same code; only
   `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` differ.
 - API:
@@ -190,7 +195,7 @@ One helper: `src/lib/rate-limit.ts`.
   - `betterAuthRateLimitStorage`: `consume(key, rule)` for Better Auth's
     `rateLimit.customStorage`, backed by the same client.
 - Keys: `rl:{policy}:{hmac(identifier)}`. No raw emails or IPs in Redis.
-- Redis unavailable (error, or a result with timeout `reason`): log an error,
+- Redis unavailable (error or timeout): log an error,
   then apply an in-memory sliding-window limiter per instance with the same
   policy limits. Memory is bounded (expired entries pruned; capped key count).
 - Integration:
@@ -228,7 +233,7 @@ One helper: `src/lib/rate-limit.ts`.
 - `redis`: `redis:7.4-alpine`.
 - `srh`: `hiett/serverless-redis-http` pinned by image digest; `SRH_MODE=env`,
   `SRH_TOKEN` from `.env`, `SRH_CONNECTION_STRING=redis://redis:6379`; host port 8079.
-- `mailpit`: `axllent/mailpit` pinned version; SMTP 1025, web UI 8025.
+- `mailpit`: `axllent/mailpit:v1.34.0`; SMTP 1025, web UI 8025.
 
 `.env.example` additions: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`,
 `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `SRH_TOKEN`,
@@ -263,8 +268,7 @@ a separate prefix per purpose (trial hashes, rate-limit keys, IP hashes).
 
 1. Install the approved dependencies.
 2. Compose services (`redis`, `srh`, `mailpit`) and `.env.example`. Verify
-   `@upstash/ratelimit` works through SRH; if it doesn't, stop and decide before
-   choosing another approach.
+   Lua scripting through SRH and SMTP delivery to Mailpit.
 3. Vitest setup and test database bootstrap.
 4. Schema diff with the Better Auth CLI; `auth` migration (`trainer_invites`,
    last-admin trigger, email CHECK if confirmed).
