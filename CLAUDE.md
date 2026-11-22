@@ -30,7 +30,8 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   on 8079, Mailpit SMTP 1025 / UI http://localhost:8025); `docker compose ps` status
 - `npm run db:migrate` (`prisma migrate dev`), `npm run db:deploy` (prod migrations)
 - `npm run db:seed` seed plans, gym settings, opening hours (create-only, safe to re-run)
-- `npm run db:studio`; `npx prisma generate` (also runs on `postinstall`)
+- `npm run db:studio`; `npx prisma generate` (also runs on `postinstall`; Prisma 7
+  `migrate dev` does not run it, so run it after schema changes)
 - `npm test` (`vitest run`) / `npm run test:watch`. Needs Docker running and
   `TEST_DATABASE_URL` (database name must end in `_test`).
 

@@ -47,8 +47,10 @@ docs bundled in `node_modules/next/dist/docs/`.
   local Redis. Image `hiett/serverless-redis-http` has only a `latest` tag.
   Verified in step 2: SRH passes `SCRIPT LOAD`, `EVALSHA` (with `NOSCRIPT`),
   `EVAL`, `TIME`, and `PEXPIRE` through to Redis.
-- Unclear in the docs, to verify during implementation: whether Better Auth
-  lowercases emails, whether secure cookies get the `__Secure-` prefix, and
+- Verified in step 4 (source of 1.7.27): Better Auth lowercases emails on user
+  create, update, and lookup, so `users_email_lower_check` is added. The core
+  tables match our `User`, `Session`, `Account`, `Verification` models.
+- Unclear in the docs, to verify during implementation: whether secure cookies get the `__Secure-` prefix, and
   whether a sign-in attempt by an unverified user resends the verification email
   without `sendOnSignIn`.
 
