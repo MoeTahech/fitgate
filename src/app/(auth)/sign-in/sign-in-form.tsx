@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { AuthCard, Field, FormAlert, SubmitButton } from "@/components/ui/form";
 import { authClient } from "@/lib/auth/client";
 import { describeAuthError } from "@/lib/auth/client-errors";
+import { hardNavigate } from "@/lib/auth/navigation";
 import { safeRedirectPath, verificationCallbackURL } from "@/lib/auth/redirect";
 import { fieldErrors, signInSchema } from "@/lib/auth/schemas";
 import { ResendVerification } from "../resend-verification";
@@ -13,7 +14,6 @@ import { ResendVerification } from "../resend-verification";
 const INVALID_CREDENTIALS = "Incorrect email or password.";
 
 export function SignInForm() {
-  const router = useRouter();
   const next = safeRedirectPath(useSearchParams().get("next"), "/account");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -41,8 +41,7 @@ export function SignInForm() {
       setFormError(describeAuthError(error, INVALID_CREDENTIALS));
       return;
     }
-    router.replace(next);
-    router.refresh();
+    hardNavigate(next);
   }
 
   return (

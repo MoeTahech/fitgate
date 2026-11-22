@@ -1,14 +1,14 @@
 "use server";
 
 import { refresh } from "next/cache";
-import { redirect } from "next/navigation";
 import { z } from "zod";
 import { ROLES } from "@/lib/auth/constants";
 import { isAuthError, requireRole } from "@/lib/auth/session";
 import { getRequestIpHash } from "@/lib/request-ip";
 import { changeUserRole, RoleChangeError, type RoleChangeErrorCode } from "@/lib/services/roles";
 
-export type RoleFormState = { status: "idle" | "success" | "error"; message?: string };
+/** `signed-out`: the admin changed their own role, which revoked their sessions. */
+export type RoleFormState = { status: "idle" | "success" | "error" | "signed-out"; message?: string };
 
 const formSchema = z.object({ userId: z.string().min(1).max(64), role: z.enum(ROLES) });
 
@@ -47,7 +47,7 @@ export async function changeRoleAction(_previous: RoleFormState, formData: FormD
     throw error;
   }
 
-  if (changedOwnRole) redirect("/sign-in");
+  if (changedOwnRole) return { status: "signed-out" };
   refresh();
   return { status: "success", message: "Role updated." };
 }

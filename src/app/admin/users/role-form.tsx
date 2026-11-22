@@ -1,13 +1,18 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { ROLES, type AppRole } from "@/lib/auth/constants";
+import { hardNavigate } from "@/lib/auth/navigation";
 import { changeRoleAction, type RoleFormState } from "./actions";
 
 const LABELS: Record<AppRole, string> = { MEMBER: "Member", TRAINER: "Trainer", ADMIN: "Admin" };
 
 export function RoleForm({ userId, userName, role }: { userId: string; userName: string; role: AppRole }) {
   const [state, action, pending] = useActionState<RoleFormState, FormData>(changeRoleAction, { status: "idle" });
+
+  useEffect(() => {
+    if (state.status === "signed-out") hardNavigate("/sign-in");
+  }, [state.status]);
 
   return (
     <form action={action} className="flex flex-col items-end gap-1">

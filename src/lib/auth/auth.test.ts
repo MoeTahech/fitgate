@@ -146,6 +146,37 @@ describe("password reset", () => {
   });
 });
 
+describe("sign-out", () => {
+  it("deletes the database session and expires the session cookie", async () => {
+    const email = uniqueEmail();
+    await post("/sign-up/email", { name: "Sam", email, password: PASSWORD });
+    await db.user.update({ where: { email }, data: { emailVerified: true } });
+    const signIn = await post("/sign-in/email", { email, password: PASSWORD });
+    const sessionCookie = signIn.headers.getSetCookie().find((c) => c.startsWith("fitgate.session_token="));
+    expect(sessionCookie).toBeDefined();
+    const { id: userId } = await db.user.findUniqueOrThrow({ where: { email } });
+    expect(await db.session.count({ where: { userId } })).toBe(1);
+
+    const response = await POST(
+      new Request(`${env.BETTER_AUTH_URL}/api/auth/sign-out`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: env.BETTER_AUTH_URL,
+          "x-forwarded-for": randomIp(),
+          cookie: sessionCookie!.split(";")[0],
+        },
+        body: "{}",
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await db.session.count({ where: { userId } })).toBe(0);
+    const cleared = response.headers.getSetCookie().find((c) => c.startsWith("fitgate.session_token="));
+    expect(cleared).toMatch(/Max-Age=0/i);
+  });
+});
+
 describe("per-IP limits", () => {
   it("limits sign-ups per IP and adds Retry-After", async () => {
     const ip = randomIp();

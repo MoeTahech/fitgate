@@ -105,6 +105,10 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   Pages use `requirePageUser(returnTo, ...roles)` (sign-in redirect, 404 on a
   missing role). `getCurrentUser()` is browser-cached and for display only.
   Services that change privileges also verify the actor inside their transaction.
+- After the current user's auth state changes on the client (sign-in, sign-out,
+  own role change), leave with `hardNavigate()` from `src/lib/auth/navigation.ts`,
+  not `router.push/replace/refresh`: client navigations keep the root layout and
+  the browser-cached `getCurrentUser()` result, so the old user would still show.
 - Session reads and other request data sit behind `<Suspense>` (`cacheComponents`).
   With `partialPrefetching`, prefetch prerenders can read `headers()`/`cookies()`/
   `params`, so those are no suspension point: call `await io()` (from `next/cache`)
