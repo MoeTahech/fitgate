@@ -23,6 +23,9 @@ const readSessionUser = cache(async (): Promise<SessionUser | null> => {
   return { id, name, email, role: toAppRole(role) };
 });
 
+/** Uncached session read that returns null when signed out; safe for authorization decisions. */
+export const getSessionUser = readSessionUser;
+
 /** For server actions, route handlers, and data access. Throws `AuthError`. */
 export const { requireUser, requireRole } = createGuards(readSessionUser);
 
