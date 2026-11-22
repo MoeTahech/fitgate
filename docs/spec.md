@@ -87,9 +87,23 @@ Prices are placeholders in USD, editable by the admin; not final.
 ## Modules
 
 ### 1. Auth & users
-- Email/password sign-up and login (Better Auth), email verification.
+- Email/password sign-up and login (Better Auth), email verification required
+  before sign-in. Passwords 10–128 characters. Password reset by single-use link
+  (1 hour) signs the user out everywhere.
+- Signing up with an existing email returns the same response and emails the
+  owner instead (no account-existence leak).
+- Sessions: database-backed, 7 days, refreshed daily, `HttpOnly`, `SameSite=Lax`,
+  `Secure` over https. No cookie cache, so revocations and role changes apply
+  on the next request.
 - Role-based access, enforced on the server.
-- Admin can invite trainers and change roles.
+- Admin can change roles (`/admin/users`). At least one active admin always
+  remains. Demoting someone revokes their sessions. Demoting to member is
+  blocked while they have upcoming classes or active class templates.
+- Admin can invite trainers by email (`/admin/trainers`): the link is valid
+  7 days and single use. The invitee signs in or signs up with that email and
+  accepts; an admin who accepts stays admin. Invites can be revoked or resent.
+- The first admin is created with `npm run auth:create-admin`.
+- Every role change and invite action is audit-logged.
 
 ### 2. Memberships & billing
 - Member chooses a plan and pays via Stripe Checkout (test mode).
@@ -193,6 +207,9 @@ indexes live as raw SQL in the migrations.
 
 - `User`, `Session`, `Account`, `Verification` — Better Auth tables; `User` adds
   role, phone, Stripe customer id, booking block, and `anonymizedAt` (GDPR).
+- `TrainerInvite` (email, hashed token, inviter, status PENDING | ACCEPTED |
+  REVOKED | EXPIRED, expiresAt, acceptance and revocation details); one pending
+  invite per email.
 - `GymSettings` (singleton: name, time zone, capacity) and `OpeningHours` (per weekday).
 - `Plan` — as described under Plans, plus `isTrial`, `sortOrder`, Stripe product/price ids.
 - `Membership` (owner, plan, source: STRIPE | MANUAL | TRIAL, status, period dates,
@@ -245,6 +262,12 @@ indexes live as raw SQL in the migrations.
   credits, access rules, and webhook handling.
 - CI on GitHub Actions: lint, type check, tests on every PR.
 - Input validated with Zod; rate limiting on auth and check-in endpoints.
+  Auth limits (sliding window, Redis with an in-memory fallback): sign-in
+  5 / 15 min per IP + email and 20 / 15 min per IP; sign-up 5 / hour per IP;
+  reset request 3 / hour per email and 10 / hour per IP; reset 10 / 15 min per IP;
+  sign-up emails 3 / hour per address; trial start 3 / day per user and 10 / day
+  per IP. Limited requests get 429 with `Retry-After`. Rate-limit keys hold only
+  HMAC-hashed identifiers.
 - Responsive UI (members use phones; check-in screen used on a tablet).
 
 ## Milestones
