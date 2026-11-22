@@ -1,6 +1,6 @@
 # Plan: Authentication milestone
 
-Status: approved, not yet implemented. Branch: `feat/auth` (from `main`).
+Status: implemented on `feat/auth` (from `main`). Deviations are recorded inline.
 Scope: email/password sign-up and login, email verification, password reset,
 secure session cookies, server-enforced roles (MEMBER, TRAINER, ADMIN),
 trainer invites, role changes with the last-admin rule, audit logging, Redis
@@ -144,8 +144,9 @@ input validated with Zod, one transaction:
 3. Same role: no-op, no audit row.
 4. Last-admin rule: if the target is ADMIN, the new role isn't ADMIN, and the
    active admin count is 1, reject with `LAST_ADMIN`. Applies to self-demotion too.
-5. Demoting a TRAINER (to MEMBER) is rejected while they have upcoming
-   `SCHEDULED` sessions or active class templates; they must be reassigned first.
+5. Demoting anyone to MEMBER (from TRAINER or ADMIN; admins can run classes too)
+   is rejected while they have upcoming `SCHEDULED` sessions or active class
+   templates; they must be reassigned first.
 6. Update the role. On a demotion, delete the target's sessions.
 7. Audit row `user.role_changed` with `details: { from, to }`, actor, `ipHash`.
 
