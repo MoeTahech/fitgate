@@ -53,7 +53,10 @@ describe("parseEnv", () => {
     expect(() => parseEnv({ ...valid, NODE_ENV: "production", BETTER_AUTH_URL: "https://fitgate.app", EMAIL_TRANSPORT: "console" })).toThrow(
       /EMAIL_TRANSPORT/,
     );
-    expect(() => parseEnv({ ...valid, NODE_ENV: "production" })).toThrow(/BETTER_AUTH_URL/);
+    expect(() => parseEnv({ ...valid, NODE_ENV: "production", BETTER_AUTH_URL: "http://fitgate.app" })).toThrow(
+      /BETTER_AUTH_URL/,
+    );
+    expect(parseEnv({ ...valid, NODE_ENV: "production" }).BETTER_AUTH_URL).toBe("http://localhost:3000");
     expect(parseEnv({ ...valid, NODE_ENV: "production", BETTER_AUTH_URL: "https://fitgate.app" }).NODE_ENV).toBe(
       "production",
     );

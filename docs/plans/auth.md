@@ -50,9 +50,14 @@ docs bundled in `node_modules/next/dist/docs/`.
 - Verified in step 4 (source of 1.7.27): Better Auth lowercases emails on user
   create, update, and lookup, so `users_email_lower_check` is added. The core
   tables match our `User`, `Session`, `Account`, `Verification` models.
-- Unclear in the docs, to verify during implementation: whether secure cookies get the `__Secure-` prefix, and
-  whether a sign-in attempt by an unverified user resends the verification email
-  without `sendOnSignIn`.
+- Verified in step 7: with secure cookies the session cookie is
+  `__Secure-fitgate.session_token` and `getSessionCookie` reads both names.
+  `useSecureCookies` follows the `BETTER_AUTH_URL` scheme (env validation
+  requires https in production except for localhost). Email verification tokens
+  are signed JWTs and not stored; `storeIdentifier: "hashed"` covers stored
+  tokens (password reset). `sendOnSignIn` defaults to false, so it is set.
+  `forbidden()` still needs experimental `authInterrupts`; pages use `notFound()`
+  for a missing role.
 
 ## 1. Schema reconciliation
 

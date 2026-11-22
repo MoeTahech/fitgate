@@ -1,6 +1,8 @@
 import "server-only";
 import { z } from "zod";
 
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
 const secret = z.string().min(32, "must be at least 32 characters");
 const httpUrl = z.url({ protocol: /^https?$/ });
 
@@ -33,11 +35,12 @@ const envSchema = z.intersection(baseSchema, emailTransportSchema).superRefine((
       message: "console transport is not allowed in production",
     });
   }
-  if (!env.BETTER_AUTH_URL.startsWith("https://")) {
+  const authUrl = new URL(env.BETTER_AUTH_URL);
+  if (authUrl.protocol !== "https:" && !LOOPBACK_HOSTS.has(authUrl.hostname)) {
     ctx.addIssue({
       code: "custom",
       path: ["BETTER_AUTH_URL"],
-      message: "must use https in production",
+      message: "must use https in production (http is allowed only for localhost)",
     });
   }
 });
