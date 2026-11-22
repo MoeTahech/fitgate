@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { io } from "next/cache";
 import Link from "next/link";
 import { Suspense } from "react";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -18,6 +19,7 @@ const UNUSABLE = {
 
 async function InviteView({ params }: { params: PageProps<"/invite/trainer/[token]">["params"] }) {
   const { token } = await params;
+  await io();
   const invite = await findInviteByToken(token);
 
   if (invite.state !== "valid") {

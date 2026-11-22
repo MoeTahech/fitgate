@@ -106,6 +106,10 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   missing role). `getCurrentUser()` is browser-cached and for display only.
   Services that change privileges also verify the actor inside their transaction.
 - Session reads and other request data sit behind `<Suspense>` (`cacheComponents`).
+  With `partialPrefetching`, prefetch prerenders can read `headers()`/`cookies()`/
+  `params`, so those are no suspension point: call `await io()` (from `next/cache`)
+  before rendering code that reads the current time or randomness, directly or
+  inside a library (e.g. Better Auth session validation, `new Date()` in queries).
 - Tokens (invites, etc.): `generateToken()` in the link only, `sha256` stored.
 - Rate limit new sensitive endpoints; limited responses must not reveal whether
   an account exists.

@@ -1,5 +1,5 @@
 import "server-only";
-import { cacheLife } from "next/cache";
+import { cacheLife, io } from "next/cache";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
@@ -17,7 +17,11 @@ function toAppRole(value: unknown): AppRole {
 
 /** Reads the session from the database on every request (cookie cache is disabled); deduplicated per request. */
 const readSessionUser = cache(async (): Promise<SessionUser | null> => {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const requestHeaders = await headers();
+  // Prefetch prerenders can read headers, so they are no suspension point there. Session validation
+  // compares expiry with the current time; io() keeps it out of prerenders (a no-op in cached scopes).
+  await io();
+  const session = await auth.api.getSession({ headers: requestHeaders });
   if (!session) return null;
   const { id, name, email, role } = session.user;
   return { id, name, email, role: toAppRole(role) };
