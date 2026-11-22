@@ -182,7 +182,8 @@ UI: `/admin/trainers` (invite form, pending invites with revoke/resend).
 
 ## 6. Rate limiting
 
-One helper: `src/lib/rate-limit.ts`.
+One helper: `src/lib/rate-limit/` (`index.ts` is the public API; the
+sliding-window math, stores, and limiter are separate modules for testing).
 
 - Client: `@upstash/redis` with one Lua sliding-window script (two fixed
   buckets, weighted previous bucket, atomic check and increment), loaded once
@@ -193,10 +194,12 @@ One helper: `src/lib/rate-limit.ts`.
 - Production: Upstash Redis. Local: `redis` + `srh` in compose. Same code; only
   `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` differ.
 - API:
-  - `rateLimit(policy, identifier)` returns `{ success, remaining, resetAt }`.
+  - `rateLimit(policy, identifier)` returns `{ success, remaining, retryAfterSeconds }`.
   - `betterAuthRateLimitStorage`: `consume(key, rule)` for Better Auth's
     `rateLimit.customStorage`, backed by the same client.
-- Keys: `rl:{policy}:{hmac(identifier)}`. No raw emails or IPs in Redis.
+- Keys: `rl:{policy}:{hmac(identifier)}:{bucket}`. No raw emails or IPs in Redis.
+- Better Auth's 429 carries only `X-Retry-After`; the route handler adds the
+  standard `Retry-After` header.
 - Redis unavailable (error or timeout): log an error,
   then apply an in-memory sliding-window limiter per instance with the same
   policy limits. Memory is bounded (expired entries pruned; capped key count).
