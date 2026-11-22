@@ -76,6 +76,14 @@ describe("sign-up", () => {
     expect(await db.user.count({ where: { email } })).toBe(1);
   });
 
+  it("rejects names that are empty or too long", async () => {
+    for (const name of ["   ", "x".repeat(101)]) {
+      const email = uniqueEmail();
+      expect((await post("/sign-up/email", { name, email, password: PASSWORD })).status).toBe(400);
+      expect(await db.user.findUnique({ where: { email } })).toBeNull();
+    }
+  });
+
   it("rejects passwords shorter than 10 characters", async () => {
     const response = await post("/sign-up/email", { name: "Sam", email: uniqueEmail(), password: "short-pw" });
     expect(response.status).toBe(400);

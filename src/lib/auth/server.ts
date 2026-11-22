@@ -14,14 +14,14 @@ import {
   ROLES,
   VERIFICATION_TOKEN_TTL_SECONDS,
 } from "./constants";
+import { EMAIL_MAX_LENGTH, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, signUpSchema } from "./schemas";
 
 const DAY_SECONDS = 24 * 60 * 60;
-const MAX_EMAIL_LENGTH = 254;
 
 function normalizeEmail(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const email = value.trim().toLowerCase();
-  return email.length > 0 && email.length <= MAX_EMAIL_LENGTH ? email : null;
+  return email.length > 0 && email.length <= EMAIL_MAX_LENGTH ? email : null;
 }
 
 function tooManyRequests(retryAfterSeconds: number): APIError {
@@ -59,8 +59,8 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
-    minPasswordLength: 10,
-    maxPasswordLength: 128,
+    minPasswordLength: PASSWORD_MIN_LENGTH,
+    maxPasswordLength: PASSWORD_MAX_LENGTH,
     resetPasswordTokenExpiresIn: PASSWORD_RESET_TOKEN_TTL_SECONDS,
     revokeSessionsOnPasswordReset: true,
     async sendResetPassword({ user, url }) {
@@ -111,6 +111,10 @@ export const auth = betterAuth({
 
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === "/sign-up/email" && !signUpSchema.safeParse(ctx.body).success) {
+        throw new APIError("BAD_REQUEST", { message: "Invalid sign-up details" });
+      }
+
       const limit = PER_EMAIL_LIMITS[ctx.path];
       if (!limit || !ctx.request) return;
       const email = normalizeEmail((ctx.body as { email?: unknown } | undefined)?.email);

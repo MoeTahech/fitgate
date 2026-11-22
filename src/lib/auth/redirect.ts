@@ -18,3 +18,8 @@ export function safeRedirectPath(value: string | null | undefined, fallback = FA
     return fallback;
   }
 }
+
+/** Where Better Auth sends the user after an email verification link (success or error). */
+export function verificationCallbackURL(next: string): string {
+  return `/verify-email?next=${encodeURIComponent(safeRedirectPath(next, "/account"))}`;
+}
