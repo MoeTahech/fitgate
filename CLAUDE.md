@@ -46,6 +46,8 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   `migrate dev` does not run it, so run it after schema changes)
 - `/verify` (project skill in `.claude/skills/verify/`): tsc, lint, tests in order;
   stops at the first failure.
+- `/migration` (project skill in `.claude/skills/migration/`): the full schema
+  change workflow (create-only, raw SQL, drift check, generate, constraint tests).
 - `npm test` (`vitest run`) / `npm run test:watch`. Needs Docker running and
   `TEST_DATABASE_URL` (database name must end in `_test`).
 - `npm run auth:create-admin` create the first admin (only while none exists);
