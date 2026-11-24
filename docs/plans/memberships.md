@@ -419,7 +419,7 @@ PR A:
    explicit-time rule (decision 14).
 6. Manual create (including decision 13) and extend, with tests.
 7. Void and refund, with tests.
-8. Freezes, with tests.
+8. Freezes, with tests. New migration (via `/migration`) relaxes `membership_freezes_range_check` to `<= INTERVAL '30 days 1 hour'` (a 30-day freeze across Beirut's October DST change is 30 days 1 hour; the service enforces 1–30 whole local days), with a test for that case.
 9. Trials, with tests.
 10. Couples invites, email template, and accept page, with tests.
 11. Read models and authorization tests.
