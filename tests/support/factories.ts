@@ -1,8 +1,13 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import type {
+  FreezeStatus,
+  MemberRole,
+  Membership,
   MembershipSource,
   MembershipStatus,
+  PaymentMethod,
+  PlanType,
   Prisma,
   Role,
   SessionStatus,
@@ -118,6 +123,88 @@ export async function createMembership(
       endedAt: ended ? new Date() : null,
       pastDueSince: status === "PAST_DUE" ? new Date() : null,
       createdAt: startsAt,
+    },
+  });
+}
+
+export async function createSeat(
+  membershipId: string,
+  userId: string,
+  overrides: { role?: MemberRole; planType?: PlanType; joinedAt?: Date; endedAt?: Date | null } = {},
+) {
+  return db.membershipMember.create({
+    data: {
+      membershipId,
+      userId,
+      role: overrides.role ?? "OWNER",
+      planType: overrides.planType ?? "BASE",
+      joinedAt: overrides.joinedAt ?? new Date(),
+      endedAt: overrides.endedAt ?? null,
+    },
+  });
+}
+
+export async function createManualPayment(
+  membership: Pick<Membership, "id" | "ownerId" | "currentPeriodStart" | "currentPeriodEnd">,
+  recordedById: string,
+  overrides: { status?: "SUCCEEDED" | "VOIDED"; method?: Exclude<PaymentMethod, "STRIPE">; reference?: string | null; amountCents?: number } = {},
+) {
+  const status = overrides.status ?? "SUCCEEDED";
+  const voided = status === "VOIDED";
+  return db.payment.create({
+    data: {
+      membershipId: membership.id,
+      userId: membership.ownerId,
+      method: overrides.method ?? "CASH",
+      status,
+      amountCents: overrides.amountCents ?? 3000,
+      periodStart: membership.currentPeriodStart,
+      periodEnd: membership.currentPeriodEnd,
+      paidAt: membership.currentPeriodStart,
+      reference: overrides.reference ?? null,
+      recordedById,
+      voidedAt: voided ? new Date() : null,
+      voidedById: voided ? recordedById : null,
+      voidReason: voided ? "Recorded by mistake" : null,
+    },
+  });
+}
+
+export async function createMembershipInvite(
+  membershipId: string,
+  invitedById: string,
+  overrides: { email?: string; createdAt?: Date; expiresAt?: Date } = {},
+) {
+  const createdAt = overrides.createdAt ?? new Date();
+  return db.membershipInvite.create({
+    data: {
+      membershipId,
+      invitedById,
+      email: overrides.email ?? `partner-${randomUUID()}@example.test`,
+      tokenHash: randomBytes(32).toString("hex"),
+      createdAt,
+      expiresAt: overrides.expiresAt ?? new Date(createdAt.getTime() + 7 * DAY_MS),
+    },
+  });
+}
+
+export async function createFreeze(
+  membershipId: string,
+  requestedById: string,
+  overrides: { status?: FreezeStatus; startsAt?: Date; endsAt?: Date; decidedById?: string } = {},
+) {
+  const status = overrides.status ?? "REQUESTED";
+  const startsAt = overrides.startsAt ?? new Date(Date.now() + 2 * DAY_MS);
+  const decided = status === "APPROVED" || status === "REJECTED" || status === "COMPLETED";
+  return db.membershipFreeze.create({
+    data: {
+      membershipId,
+      requestedById,
+      status,
+      startsAt,
+      endsAt: overrides.endsAt ?? new Date(startsAt.getTime() + 7 * DAY_MS),
+      decidedById: decided ? (overrides.decidedById ?? requestedById) : null,
+      decidedAt: decided ? new Date() : null,
     },
   });
 }

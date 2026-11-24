@@ -73,6 +73,13 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   in `src/app/globals.css`.
 - Path alias: `@/*` -> `src/*`.
 - Business logic goes in `src/lib/services/`; route handlers stay thin.
+- Audit rows: `audit(tx, entry)` from `src/lib/services/audit.ts`, always with the
+  transaction of the change.
+- Memberships: `src/lib/services/memberships/`. `rules.ts` pure rules (usability, overdue,
+  periods); `internal.ts` shared transaction helpers for the membership services only
+  (`lockUsers`/`lockMembership`, `requireActiveAdmin`, `getGymClock`, overdue cleanup,
+  `endMembership`, `resolveOpenBase`); `errors.ts` `MembershipError(code, details?)` and
+  `toMembershipError`, which maps backstop unique-index violations to domain codes.
 - Database: schema in `prisma/schema.prisma`, config in `prisma.config.ts`
   (loads `.env` itself; migrations use `DIRECT_URL`, falling back to `DATABASE_URL`).
   Import the client only via `db` from `src/lib/db.ts`. Generated client lives in
@@ -105,6 +112,10 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   display and for local-calendar math (periods, opening hours), via `src/lib/time.ts`.
 - Money as integer cents.
 - Booking, waitlist, and credit changes run inside a DB transaction.
+- Explicit time in membership (and later booking) services: take one `now` per call and pass
+  it down; every timestamp written comes from it, including `createdAt` on inserted rows and
+  audit rows. No SQL `now()`/`CURRENT_TIMESTAMP` or column defaults in time-dependent logic,
+  queries, or constraints: tests fake only the JS `Date`.
 - Row locks via `tx.$queryRaw ... FOR UPDATE`; lock order is always
   User -> Membership -> ClassSession to avoid deadlocks.
 - Audit log rows are written in the same transaction as the change. Details
