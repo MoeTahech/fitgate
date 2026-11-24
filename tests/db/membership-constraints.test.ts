@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { InviteStatus, Prisma, TrialKind } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { resetDatabase } from "../support/database";
-import { createMembership, createPlan, createUser } from "../support/factories";
+import { createFreeze, createMembership, createPlan, createUser } from "../support/factories";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -210,5 +210,31 @@ describe("membership_invites", () => {
     await expect(
       insertInvite({ createdAt, expiresAt: new Date(createdAt.getTime() + 1) }),
     ).resolves.toBeDefined();
+  });
+});
+
+describe("membership_freezes", () => {
+  const HOUR_MS = 60 * 60 * 1000;
+
+  async function insertFreeze(startsAt: Date, endsAt: Date) {
+    const owner = await createUser();
+    const membership = await createMembership(owner.id, (await createPlan()).id);
+    return createFreeze(membership.id, owner.id, { startsAt, endsAt });
+  }
+
+  it("requires the end after the start", async () => {
+    const startsAt = new Date("2027-10-14T21:00:00.000Z");
+    await expect(insertFreeze(startsAt, startsAt)).rejects.toThrow(/membership_freezes_range_check/);
+    await expect(insertFreeze(startsAt, new Date(startsAt.getTime() + 1))).resolves.toBeDefined();
+  });
+
+  it("allows up to 30 days 1 hour, the length of 30 local days across a DST end", async () => {
+    // 15 Oct to 13 Nov 2027 in Beirut: midnight UTC+3 to midnight UTC+2 after the 31 Oct change.
+    const startsAt = new Date("2027-10-14T21:00:00.000Z");
+    const endsAt = new Date("2027-11-13T22:00:00.000Z");
+    expect(endsAt.getTime() - startsAt.getTime()).toBe(30 * DAY_MS + HOUR_MS);
+
+    await expect(insertFreeze(startsAt, endsAt)).resolves.toBeDefined();
+    await expect(insertFreeze(startsAt, new Date(endsAt.getTime() + 1))).rejects.toThrow(/membership_freezes_range_check/);
   });
 });

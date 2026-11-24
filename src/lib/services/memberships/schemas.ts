@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { LocalDate } from "@/lib/time";
 
 export const FREE_TEXT_MAX_LENGTH = 500;
 export const REFERENCE_MAX_LENGTH = 100;
@@ -47,6 +48,15 @@ export const manualPaymentMethodSchema = z.enum(MANUAL_PAYMENT_METHODS);
 
 /** A user id (Better Auth string id). */
 export const userIdSchema = z.string().min(1).max(64);
+
+/** A local calendar date as YYYY-MM-DD; month lengths and leap years are checked. */
+export const localDateSchema = z.iso.date().transform(
+  (value): LocalDate => ({
+    year: Number(value.slice(0, 4)),
+    month: Number(value.slice(5, 7)),
+    day: Number(value.slice(8, 10)),
+  }),
+);
 
 export const ipHashSchema = z
   .string()

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasNoContactData, noteSchema, reasonSchema, referenceSchema } from "./schemas";
+import { hasNoContactData, localDateSchema, noteSchema, reasonSchema, referenceSchema } from "./schemas";
 
 describe("hasNoContactData", () => {
   it.each([
@@ -56,5 +56,16 @@ describe("referenceSchema", () => {
     expect(referenceSchema.parse(undefined)).toBeNull();
     expect(referenceSchema.safeParse("x".repeat(101)).success).toBe(false);
     expect(referenceSchema.safeParse("WH-1\nWH-2").success).toBe(false);
+  });
+});
+
+describe("localDateSchema", () => {
+  it("parses YYYY-MM-DD into a local date", () => {
+    expect(localDateSchema.parse("2028-02-29")).toEqual({ year: 2028, month: 2, day: 29 });
+    expect(localDateSchema.parse("2026-12-04")).toEqual({ year: 2026, month: 12, day: 4 });
+  });
+
+  it.each(["2027-02-29", "2027-04-31", "2027-13-01", "2027-1-05", "05/01/2027", ""])("rejects %j", (value) => {
+    expect(localDateSchema.safeParse(value).success).toBe(false);
   });
 });

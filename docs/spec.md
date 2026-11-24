@@ -174,7 +174,8 @@ Stripe webhooks.
 
 ### Freezes
 - Only the owner can request a freeze, and only on a recurring `BASE` membership
-  (not a Day Pass, trial, or Class Pack).
+  (not a Day Pass, trial, or Class Pack). Until the Stripe milestone adds pausing the
+  subscription in Stripe, only manual memberships can be frozen.
 - Freezes cover whole local days, start at least 2 days ahead (the day after tomorrow
   or later), last 1 to 30 days, and must start before the period end. One open freeze
   per membership.
@@ -371,7 +372,7 @@ indexes live as raw SQL in the migrations.
         payments pages.
    - **2b — Stripe:** Checkout, subscriptions (incl. multi-month plans and promo
      codes), webhooks, Stripe-driven membership status, Stripe purchase of
-     couples plans.
+     couples plans, Stripe membership freezes (pause in Stripe).
 3. Check-in: QR tokens, scan screen, occupancy.
 4. Classes: templates, sessions, booking, waitlist, credits, tests.
 5. Trainer view, admin dashboard, CI, README, demo data.

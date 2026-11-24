@@ -13,7 +13,9 @@ import {
 } from "../../../../tests/support/factories";
 import { expectMembershipError } from "../../../../tests/support/membership-errors";
 import { refundPayment, voidPayment, type RefundPaymentInput, type VoidPaymentInput } from "./corrections";
+import { approveFreeze, requestFreeze } from "./freezes";
 import { createManualMembership, extendManualMembership } from "./manual";
+import { remainingUsableMs } from "./rules";
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -270,6 +272,49 @@ describe("voidPayment", () => {
         targetId: approved.id,
         details: { via: "period_rolled_back" },
       }),
+    ]);
+  });
+
+  it("rolls back to the shifted boundary after an approved freeze, keeping the frozen days off the paid month", async () => {
+    // Freeze 10-16 Dec (7 local days) falls in the first paid month, so approval moves the second payment's period.
+    const { admin, member, membershipId, first, second } = await extendedMembership();
+    const freeze = await requestFreeze({ userId: member.id, membershipId, firstDay: "2026-12-10", lastDay: "2026-12-16" });
+    await approveFreeze({ actorId: admin.id, freezeId: freeze.freezeId });
+    const shiftedBoundary = new Date(ONE_MONTH_LATER.getTime() + 7 * DAY);
+
+    const result = await voidIt(admin, second);
+
+    expect(result.effect).toEqual({
+      membership: "rolled_back",
+      previousEnd: new Date(TWO_MONTHS_LATER.getTime() + 7 * DAY),
+      newEnd: shiftedBoundary,
+      expired: false,
+    });
+    const membership = await db.membership.findUniqueOrThrow({ where: { id: membershipId }, include: { plan: true } });
+    expect(membership).toMatchObject({ status: "ACTIVE", currentPeriodEnd: shiftedBoundary });
+    expect(await getPayment(first)).toMatchObject({ periodStart: NOW, periodEnd: shiftedBoundary });
+    expect((await db.membershipFreeze.findUniqueOrThrow({ where: { id: freeze.freezeId } })).status).toBe("APPROVED");
+    const freezes = await db.membershipFreeze.findMany({ where: { membershipId } });
+    expect(remainingUsableMs(membership, freezes, NOW)).toBe(ONE_MONTH_LATER.getTime() - NOW.getTime());
+  });
+
+  it("rolls back past an approved freeze in the voided period and cancels the freeze", async () => {
+    // Freeze 10-16 Jan falls in the second paid month: approval moves only that period's end.
+    const { admin, member, membershipId, second } = await extendedMembership();
+    const freeze = await requestFreeze({ userId: member.id, membershipId, firstDay: "2027-01-10", lastDay: "2027-01-16" });
+    await approveFreeze({ actorId: admin.id, freezeId: freeze.freezeId });
+    expect(await getPayment(second)).toMatchObject({
+      periodStart: ONE_MONTH_LATER,
+      periodEnd: new Date(TWO_MONTHS_LATER.getTime() + 7 * DAY),
+    });
+
+    const result = await voidIt(admin, second);
+
+    expect(result.effect).toMatchObject({ membership: "rolled_back", newEnd: ONE_MONTH_LATER, expired: false });
+    expect((await getMembership(membershipId)).currentPeriodEnd).toEqual(ONE_MONTH_LATER);
+    expect((await db.membershipFreeze.findUniqueOrThrow({ where: { id: freeze.freezeId } })).status).toBe("CANCELLED");
+    expect(await auditRows("membership_freeze.cancelled")).toEqual([
+      expect.objectContaining({ targetId: freeze.freezeId, details: { via: "period_rolled_back" } }),
     ]);
   });
 

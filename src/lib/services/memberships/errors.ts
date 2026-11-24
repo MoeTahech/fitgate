@@ -20,7 +20,14 @@ export type MembershipErrorCode =
   | "HAS_REFUND"
   | "ALREADY_REFUNDED"
   | "INVALID_AMOUNT"
-  | "PAYMENT_NOT_VALID";
+  | "PAYMENT_NOT_VALID"
+  | "NOT_OWNER"
+  | "NOT_FREEZABLE"
+  | "INVALID_FREEZE_DATES"
+  | "FREEZE_ALREADY_OPEN"
+  | "FREEZE_NOT_FOUND"
+  | "FREEZE_NOT_OPEN"
+  | "FREEZE_STARTED";
 
 export type MembershipErrorDetails = Readonly<Record<string, string | number | boolean | null>>;
 
@@ -41,6 +48,17 @@ export type OpenBaseConflictDetails =
 
 export type OpenBaseConflictReason = OpenBaseConflictDetails["reason"];
 
+/**
+ * Why requested freeze dates are invalid (`INVALID_FREEZE_DATES` details):
+ * - `END_BEFORE_START`: the last day is before the first day.
+ * - `TOO_SOON`: the first day is before the day after tomorrow.
+ * - `TOO_LONG`: more than 30 days.
+ * - `AFTER_PERIOD_END`: the freeze would start at or after the period end.
+ */
+export type FreezeDatesDetails = {
+  reason: "END_BEFORE_START" | "TOO_SOON" | "TOO_LONG" | "AFTER_PERIOD_END";
+};
+
 export class MembershipError extends Error {
   readonly code: MembershipErrorCode;
   readonly details: MembershipErrorDetails | undefined;
@@ -56,6 +74,7 @@ export class MembershipError extends Error {
 const UNIQUE_INDEX_CODES: Readonly<Record<string, MembershipErrorCode>> = {
   membership_members_one_active_base_key: "HAS_ACTIVE_BASE",
   payments_method_reference_key: "DUPLICATE_REFERENCE",
+  membership_freezes_one_open_key: "FREEZE_ALREADY_OPEN",
   trial_redemptions_user_id_kind_key: "TRIAL_ALREADY_USED",
   trial_redemptions_email_hash_kind_key: "TRIAL_ALREADY_USED",
   trial_redemptions_phone_hash_kind_key: "TRIAL_ALREADY_USED",

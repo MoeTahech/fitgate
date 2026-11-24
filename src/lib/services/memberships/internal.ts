@@ -1,6 +1,6 @@
 import "server-only";
 import { Prisma } from "@/generated/prisma/client";
-import type { Membership, MembershipMember, MembershipStatus, Plan } from "@/generated/prisma/client";
+import type { Membership, MembershipMember, MembershipStatus, PaymentStatus, Plan } from "@/generated/prisma/client";
 import type { AppRole } from "@/lib/auth/constants";
 import { audit } from "@/lib/services/audit";
 import { MembershipError, type OpenBaseConflictDetails } from "./errors";
@@ -10,6 +10,9 @@ export type Tx = Prisma.TransactionClient;
 
 const DAY_MS = 86_400_000;
 export const DEFAULT_TIME_ZONE = "Asia/Beirut";
+
+/** Payments that still pay for their covered period. */
+export const VALID_PAYMENT_STATUSES: readonly PaymentStatus[] = ["SUCCEEDED", "PARTIALLY_REFUNDED"];
 
 // ─── Locks ───────────────────────────────────────────────────────────────────
 

@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { resetDatabase } from "../../../../tests/support/database";
-import { createManualPayment, createMembership, createPlan, createSeat, createUser } from "../../../../tests/support/factories";
+import {
+  createFreeze,
+  createManualPayment,
+  createMembership,
+  createPlan,
+  createSeat,
+  createUser,
+} from "../../../../tests/support/factories";
 import { MembershipError, toMembershipError, violatedUniqueIndex } from "./errors";
 
 beforeEach(async () => {
@@ -58,6 +65,15 @@ describe("toMembershipError", () => {
     const error = await rejection(createManualPayment(membership, admin.id, { reference: "TX-1" }));
 
     expect((toMembershipError(error) as MembershipError).code).toBe("DUPLICATE_REFERENCE");
+  });
+
+  it("maps a second open freeze to FREEZE_ALREADY_OPEN", async () => {
+    const { user, membership } = await memberWithBase();
+    await createFreeze(membership.id, user.id);
+
+    const error = await rejection(createFreeze(membership.id, user.id));
+
+    expect((toMembershipError(error) as MembershipError).code).toBe("FREEZE_ALREADY_OPEN");
   });
 
   it("returns other errors unchanged", async () => {

@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import type { Payment, PaymentStatus } from "@/generated/prisma/client";
+import type { Payment } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/services/audit";
 import { MembershipError } from "./errors";
@@ -10,6 +10,7 @@ import {
   lockMembership,
   lockUsers,
   requireActiveAdmin,
+  VALID_PAYMENT_STATUSES,
   type CleanupTrigger,
   type LockedMembership,
   type Tx,
@@ -40,9 +41,6 @@ export type PaymentCorrectionResult = {
   membershipId: string;
   effect: CorrectionEffect;
 };
-
-/** Payments that still pay for their covered period. */
-const VALID_STATUSES: readonly PaymentStatus[] = ["SUCCEEDED", "PARTIALLY_REFUNDED"];
 
 type Correction = "void" | "refund";
 
@@ -98,7 +96,7 @@ async function lockCorrection(
 /** Void and full refund apply only to the membership's valid payment with the newest period start. */
 async function assertLatestValidPayment(tx: Tx, payment: ManualPayment): Promise<void> {
   const latest = await tx.payment.findFirst({
-    where: { membershipId: payment.membershipId, status: { in: [...VALID_STATUSES] } },
+    where: { membershipId: payment.membershipId, status: { in: [...VALID_PAYMENT_STATUSES] } },
     orderBy: [{ periodStart: "desc" }, { createdAt: "desc" }, { id: "desc" }],
     select: { id: true },
   });
