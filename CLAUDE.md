@@ -92,11 +92,17 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   policies in its `index.ts`. Redis failures fall back to a per-instance memory limiter.
 - Email: `sendEmail` + templates from `src/lib/email`.
 - Crypto: `generateToken`, `sha256`, `keyedHash(purpose, value)` from `src/lib/crypto.ts`.
+- Time zones: all zone math and local-time display go through `src/lib/time.ts`
+  (`zonedParts`, `zonedToInstant`, `addDaysZoned`, `addMonthsZoned`, `startOfZonedDay`,
+  `localMinutes`, `formatLocal`, `formatLocalTime`). New code does no ad-hoc offset
+  arithmetic and builds no own `Intl.DateTimeFormat`. DST gaps resolve forward, overlaps
+  to the earlier instant.
 
 ## Conventions
 - Validate all external input with Zod.
 - Authorization is enforced on the server, never only in the UI.
-- Store times in UTC; convert to the gym's time zone only for display.
+- Store times in UTC; convert to the gym's time zone (`GymSettings.timeZone`) only for
+  display and for local-calendar math (periods, opening hours), via `src/lib/time.ts`.
 - Money as integer cents.
 - Booking, waitlist, and credit changes run inside a DB transaction.
 - Row locks via `tx.$queryRaw ... FOR UPDATE`; lock order is always
