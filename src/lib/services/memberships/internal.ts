@@ -209,7 +209,7 @@ export async function endMembership(tx: Tx, membership: Pick<Membership, "id">, 
   }
 }
 
-export type CleanupTrigger = "manual_create" | "manual_extend" | "trial_start" | "invite_accept";
+export type CleanupTrigger = "manual_create" | "manual_extend" | "payment_void" | "payment_refund" | "trial_start" | "invite_accept";
 
 /**
  * Ends the overdue memberships the person holds an open seat on (`EXPIRED`, or `CANCELLED` when

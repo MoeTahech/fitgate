@@ -13,7 +13,14 @@ export type MembershipErrorCode =
   | "HAS_ACTIVE_BASE"
   | "SAME_PLAN"
   | "DUPLICATE_REFERENCE"
-  | "TRIAL_ALREADY_USED";
+  | "TRIAL_ALREADY_USED"
+  | "PAYMENT_NOT_FOUND"
+  | "NOT_MANUAL"
+  | "NOT_LATEST_PAYMENT"
+  | "HAS_REFUND"
+  | "ALREADY_REFUNDED"
+  | "INVALID_AMOUNT"
+  | "PAYMENT_NOT_VALID";
 
 export type MembershipErrorDetails = Readonly<Record<string, string | number | boolean | null>>;
 
