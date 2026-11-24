@@ -39,6 +39,24 @@ npx prisma migrate dev --create-only --name <name>
 This writes `prisma/migrations/<timestamp>_<name>/migration.sql` and leaves the
 database unchanged.
 
+If it refuses with "the environment is non-interactive" after data-loss warnings
+(dropping a column, adding a unique constraint), generate the same SQL against the
+dev database instead. It must have no drift (all migrations applied), so the diff
+equals what `--create-only` would write:
+
+```powershell
+$dir = "prisma/migrations/$((Get-Date).ToUniversalTime().ToString('yyyyMMddHHmmss'))_<name>"
+New-Item -ItemType Directory $dir | Out-Null
+npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script -o "$dir/migration.sql"
+```
+
+Use `-o`, not `>`: PowerShell redirection writes a BOM. Then continue with step 3.
+
+Review the order of Prisma's statements: it may put `DROP COLUMN` (or a type
+change) before a backfill that still reads that column. Move the drop below the
+backfill. Dropping a column also silently drops the CHECKs and indexes that use
+it, so drop those explicitly first and recreate their replacements.
+
 ## 3. Append the raw SQL
 
 Review Prisma's generated SQL, then add the raw part at the end of the file,
@@ -54,7 +72,7 @@ ALTER TABLE "plans"
   ADD CONSTRAINT "plans_price_check" CHECK ("price_cents" >= 0),
   ADD CONSTRAINT "plans_currency_check" CHECK ("currency" ~ '^[a-z]{3}$');
 
-CREATE UNIQUE INDEX "plans_one_active_trial_key" ON "plans" ("is_trial") WHERE "is_trial" AND "active";
+CREATE UNIQUE INDEX "plans_one_active_trial_per_kind_key" ON "plans" ("trial_kind") WHERE "trial_kind" IS NOT NULL AND "active";
 ```
 
 Conventions:
