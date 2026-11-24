@@ -6,6 +6,10 @@ export type MembershipErrorCode =
   | "USER_NOT_FOUND"
   | "USER_ANONYMIZED"
   | "MEMBERSHIP_NOT_FOUND"
+  | "PLAN_UNAVAILABLE"
+  | "CLOSED_FOR_TODAY"
+  | "MEMBERSHIP_ENDED"
+  | "NOT_EXTENDABLE"
   | "HAS_ACTIVE_BASE"
   | "SAME_PLAN"
   | "DUPLICATE_REFERENCE"
@@ -17,6 +21,8 @@ export type MembershipErrorDetails = Readonly<Record<string, string | number | b
  * Why an open base seat blocks a new BASE membership (`HAS_ACTIVE_BASE` details):
  * - `SWITCH_NEEDS_CONFIRMATION`: a manual recurring membership the member owns; it can be
  *   switched with confirmation, losing `remainingDays` (and the partner when `hasPartner`).
+ * - `SWITCH_TARGET_NOT_RECURRING`: a manual recurring membership the member owns, which can only
+ *   be switched to another recurring plan (no confirmation override).
  * - `DAY_PASS_OR_TRIAL`: an open Day Pass or trial, which only a recurring plan supersedes.
  * - `STRIPE_BASE`: a Stripe membership, which only Stripe ends.
  * - `ONE_TIME_BASE`: another manual one-time base plan, which runs until its end.
@@ -24,7 +30,7 @@ export type MembershipErrorDetails = Readonly<Record<string, string | number | b
  */
 export type OpenBaseConflictDetails =
   | { reason: "SWITCH_NEEDS_CONFIRMATION"; remainingDays: number; hasPartner: boolean }
-  | { reason: "DAY_PASS_OR_TRIAL" | "STRIPE_BASE" | "ONE_TIME_BASE" | "PARTNER_SEAT" };
+  | { reason: "SWITCH_TARGET_NOT_RECURRING" | "DAY_PASS_OR_TRIAL" | "STRIPE_BASE" | "ONE_TIME_BASE" | "PARTNER_SEAT" };
 
 export type OpenBaseConflictReason = OpenBaseConflictDetails["reason"];
 

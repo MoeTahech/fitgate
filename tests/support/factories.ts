@@ -208,3 +208,42 @@ export async function createFreeze(
     },
   });
 }
+
+const oneTimePlan = { billing: "ONE_TIME", intervalMonths: null } as const;
+
+export function createDayPassPlan(overrides: Partial<Prisma.PlanUncheckedCreateInput> = {}) {
+  return createPlan({ ...oneTimePlan, durationDays: 1, durationMode: "CALENDAR_DAYS", priceCents: 1000, ...overrides });
+}
+
+export function createGymTrialPlan(overrides: Partial<Prisma.PlanUncheckedCreateInput> = {}) {
+  return createPlan({ ...oneTimePlan, durationDays: 1, durationMode: "CALENDAR_DAYS", priceCents: 0, trialKind: "GYM", ...overrides });
+}
+
+export function createClassPackPlan(overrides: Partial<Prisma.PlanUncheckedCreateInput> = {}) {
+  return createPlan({
+    ...oneTimePlan,
+    type: "ADDON",
+    openAccess: false,
+    classAccess: "CREDITS",
+    credits: 10,
+    durationDays: 60,
+    durationMode: "ROLLING",
+    priceCents: 7000,
+    ...overrides,
+  });
+}
+
+export function createCouplesPlan(overrides: Partial<Prisma.PlanUncheckedCreateInput> = {}) {
+  return createPlan({ maxMembers: 2, classAccess: "UNLIMITED", priceCents: 8500, ...overrides });
+}
+
+/** A membership with its owner's seat (ended with the membership). */
+export async function createOwnedMembership(
+  owner: { id: string },
+  plan: { id: string; type: PlanType },
+  overrides: Parameters<typeof createMembership>[2] = {},
+) {
+  const membership = await createMembership(owner.id, plan.id, overrides);
+  await createSeat(membership.id, owner.id, { planType: plan.type, joinedAt: membership.startsAt, endedAt: membership.endedAt });
+  return membership;
+}

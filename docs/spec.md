@@ -208,12 +208,13 @@ Admins can record payments made outside Stripe.
   recording a new base plan works as follows:
   - An open trial or Day Pass is superseded by a recurring base plan: it ends now,
     without confirmation.
-  - A manual recurring membership the member owns, on a different plan, can be
-    switched after the admin confirms. The old membership ends now; its remaining
+  - A manual recurring membership the member owns can be switched to a different
+    recurring base plan after the admin confirms. The old membership ends now; its remaining
     days are lost (no refund), and on a Couples plan the partner is removed. The form
     shows the usable days left (excluding a future approved freeze).
   - The same plan is rejected; use Extend instead.
-  - Everything else is rejected: a Day Pass on an open trial or Day Pass, a Stripe
+  - Everything else is rejected: a one-time base plan (e.g. a Day Pass) on an open
+    manual recurring membership, a Day Pass on an open trial or Day Pass, a Stripe
     base, or a member who is only the partner on someone else's membership (the
     owner's membership is never ended by the partner's purchase).
   - Scheduled switches at period end come with the Stripe milestone.

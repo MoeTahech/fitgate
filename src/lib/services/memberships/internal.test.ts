@@ -1,17 +1,22 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
-import type { Plan, Prisma } from "@/generated/prisma/client";
+import type { Plan } from "@/generated/prisma/client";
 import { resetDatabase } from "../../../../tests/support/database";
 import {
+  createClassPackPlan,
+  createCouplesPlan,
+  createDayPassPlan,
   createFreeze,
+  createGymTrialPlan,
   createManualPayment,
   createMembership,
   createMembershipInvite,
+  createOwnedMembership,
   createPlan,
   createSeat,
   createUser,
 } from "../../../../tests/support/factories";
-import { MembershipError, type MembershipErrorCode } from "./errors";
+import { expectMembershipError } from "../../../../tests/support/membership-errors";
 import {
   endMembership,
   endOverdueMemberships,
@@ -35,48 +40,6 @@ beforeEach(async () => {
 
 function inTx<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
   return db.$transaction(fn);
-}
-
-async function expectMembershipError(promise: Promise<unknown>, code: MembershipErrorCode): Promise<MembershipError> {
-  const error = await promise.then(
-    () => null,
-    (reason: unknown) => reason,
-  );
-  expect(error).toBeInstanceOf(MembershipError);
-  expect((error as MembershipError).code).toBe(code);
-  return error as MembershipError;
-}
-
-const recurringPlan = (overrides: Partial<Prisma.PlanUncheckedCreateInput> = {}) => createPlan(overrides);
-
-const dayPassPlan = () =>
-  createPlan({ billing: "ONE_TIME", intervalMonths: null, durationDays: 1, durationMode: "CALENDAR_DAYS", priceCents: 800 });
-
-const gymTrialPlan = () =>
-  createPlan({ billing: "ONE_TIME", intervalMonths: null, durationDays: 1, durationMode: "CALENDAR_DAYS", priceCents: 0, trialKind: "GYM" });
-
-const classPackPlan = () =>
-  createPlan({
-    type: "ADDON",
-    openAccess: false,
-    classAccess: "CREDITS",
-    credits: 10,
-    billing: "ONE_TIME",
-    intervalMonths: null,
-    durationDays: 60,
-    durationMode: "ROLLING",
-  });
-
-const couplesPlan = () => createPlan({ maxMembers: 2, classAccess: "UNLIMITED", priceCents: 9000 });
-
-async function ownedMembership(
-  owner: { id: string },
-  plan: Pick<Plan, "id" | "type">,
-  overrides: Parameters<typeof createMembership>[2] = {},
-) {
-  const membership = await createMembership(owner.id, plan.id, overrides);
-  await createSeat(membership.id, owner.id, { planType: plan.type, joinedAt: membership.startsAt, endedAt: membership.endedAt });
-  return membership;
 }
 
 async function auditRows(action: string) {
@@ -118,7 +81,7 @@ describe("lockUsers and actor checks", () => {
 describe("lockMembership", () => {
   it("returns the membership with its plan, or MEMBERSHIP_NOT_FOUND", async () => {
     const user = await createUser();
-    const plan = await recurringPlan();
+    const plan = await createPlan();
     const membership = await createMembership(user.id, plan.id);
 
     const locked = await inTx((tx) => lockMembership(tx, membership.id));
@@ -160,8 +123,8 @@ describe("endMembership", () => {
     const admin = await createUser({ role: "ADMIN" });
     const owner = await createUser();
     const partner = await createUser();
-    const plan = await couplesPlan();
-    const membership = await ownedMembership(owner, plan, { startsAt: new Date(now.getTime() - 10 * DAY) });
+    const plan = await createCouplesPlan();
+    const membership = await createOwnedMembership(owner, plan, { startsAt: new Date(now.getTime() - 10 * DAY) });
     const endedAt = new Date(now.getTime() - 2 * DAY);
     const partnerSeat = await createSeat(membership.id, partner.id, { role: "PARTNER", joinedAt: new Date(now.getTime() - DAY) });
     const invite = await createMembershipInvite(membership.id, owner.id, { createdAt: new Date(now.getTime() - HOUR) });
@@ -215,9 +178,9 @@ describe("endMembership", () => {
     const now = new Date();
     const admin = await createUser({ role: "ADMIN" });
     const owner = await createUser();
-    const plan = await recurringPlan({ type: "ADDON", openAccess: false, classAccess: "UNLIMITED" });
-    const started = await ownedMembership(owner, plan, { startsAt: new Date(now.getTime() - 10 * DAY) });
-    const future = await ownedMembership(owner, plan, { startsAt: new Date(now.getTime() - 10 * DAY) });
+    const plan = await createPlan({ type: "ADDON", openAccess: false, classAccess: "UNLIMITED" });
+    const started = await createOwnedMembership(owner, plan, { startsAt: new Date(now.getTime() - 10 * DAY) });
+    const future = await createOwnedMembership(owner, plan, { startsAt: new Date(now.getTime() - 10 * DAY) });
     const startedFreeze = await createFreeze(started.id, owner.id, {
       status: "APPROVED",
       startsAt: new Date(now.getTime() - DAY),
@@ -246,19 +209,19 @@ describe("endOverdueMemberships", () => {
     const now = new Date();
     const user = await createUser();
     const other = await createUser();
-    const base = await couplesPlan();
-    const addon = await classPackPlan();
+    const base = await createCouplesPlan();
+    const addon = await createClassPackPlan();
     const start = new Date(now.getTime() - 40 * DAY);
 
-    const overdueOwned = await ownedMembership(user, addon, { startsAt: start, currentPeriodEnd: new Date(now.getTime() - DAY) });
-    const overdueShared = await ownedMembership(other, base, { startsAt: start, currentPeriodEnd: now });
+    const overdueOwned = await createOwnedMembership(user, addon, { startsAt: start, currentPeriodEnd: new Date(now.getTime() - DAY) });
+    const overdueShared = await createOwnedMembership(other, base, { startsAt: start, currentPeriodEnd: now });
     await createSeat(overdueShared.id, user.id, { role: "PARTNER", joinedAt: start });
-    const running = await ownedMembership(user, await recurringPlan({ type: "ADDON", openAccess: false, classAccess: "UNLIMITED" }), {
+    const running = await createOwnedMembership(user, await createPlan({ type: "ADDON", openAccess: false, classAccess: "UNLIMITED" }), {
       startsAt: start,
       currentPeriodEnd: new Date(now.getTime() + 1),
     });
-    const alreadyEnded = await ownedMembership(user, addon, { startsAt: start, currentPeriodEnd: new Date(now.getTime() - 2 * DAY), status: "EXPIRED" });
-    const notSeated = await ownedMembership(other, addon, { startsAt: start, currentPeriodEnd: new Date(now.getTime() - DAY) });
+    const alreadyEnded = await createOwnedMembership(user, addon, { startsAt: start, currentPeriodEnd: new Date(now.getTime() - 2 * DAY), status: "EXPIRED" });
+    const notSeated = await createOwnedMembership(other, addon, { startsAt: start, currentPeriodEnd: new Date(now.getTime() - DAY) });
 
     const ended = await inTx((tx) => endOverdueMemberships(tx, user.id, now, "manual_create"));
 
@@ -289,11 +252,11 @@ describe("endOverdueMemberships", () => {
   it("cancels a Stripe subscription set to cancel at period end and leaves an auto-renewing one", async () => {
     const now = new Date();
     const user = await createUser();
-    const plan = await recurringPlan({ type: "ADDON", openAccess: false, classAccess: "UNLIMITED" });
+    const plan = await createPlan({ type: "ADDON", openAccess: false, classAccess: "UNLIMITED" });
     const options = { source: "STRIPE" as const, startsAt: new Date(now.getTime() - 40 * DAY), currentPeriodEnd: new Date(now.getTime() - HOUR) };
-    const cancelling = await ownedMembership(user, plan, options);
+    const cancelling = await createOwnedMembership(user, plan, options);
     await db.membership.update({ where: { id: cancelling.id }, data: { stripeSubscriptionId: "sub_1", cancelAtPeriodEnd: true } });
-    const renewing = await ownedMembership(user, plan, options);
+    const renewing = await createOwnedMembership(user, plan, options);
     await db.membership.update({ where: { id: renewing.id }, data: { stripeSubscriptionId: "sub_2" } });
 
     expect(await inTx((tx) => endOverdueMemberships(tx, user.id, now, "trial_start"))).toEqual([cancelling.id]);
@@ -308,8 +271,8 @@ describe("paidAccessHistory", () => {
     const user = await createUser();
     expect(await inTx((tx) => paidAccessHistory(tx, user.id))).toEqual({ openAccess: false, classAccess: false });
 
-    await ownedMembership(user, await gymTrialPlan(), { source: "TRIAL", status: "EXPIRED" });
-    const voided = await ownedMembership(user, await couplesPlan(), { status: "CANCELLED" });
+    await createOwnedMembership(user, await createGymTrialPlan(), { source: "TRIAL", status: "EXPIRED" });
+    const voided = await createOwnedMembership(user, await createCouplesPlan(), { status: "CANCELLED" });
     await createManualPayment(voided, admin.id, { status: "VOIDED" });
 
     expect(await inTx((tx) => paidAccessHistory(tx, user.id))).toEqual({ openAccess: false, classAccess: false });
@@ -319,9 +282,9 @@ describe("paidAccessHistory", () => {
     const admin = await createUser({ role: "ADMIN" });
     const dayPassUser = await createUser();
     const packUser = await createUser();
-    const dayPass = await ownedMembership(dayPassUser, await dayPassPlan(), { status: "EXPIRED" });
+    const dayPass = await createOwnedMembership(dayPassUser, await createDayPassPlan(), { status: "EXPIRED" });
     await createManualPayment(dayPass, admin.id);
-    const pack = await ownedMembership(packUser, await classPackPlan());
+    const pack = await createOwnedMembership(packUser, await createClassPackPlan());
     await createManualPayment(pack, admin.id);
 
     expect(await inTx((tx) => paidAccessHistory(tx, dayPassUser.id))).toEqual({ openAccess: true, classAccess: false });
@@ -333,11 +296,11 @@ describe("paidAccessHistory", () => {
     const owner = await createUser();
     const partner = await createUser();
     const stripeUser = await createUser();
-    const couples = await couplesPlan();
-    const shared = await ownedMembership(owner, couples);
+    const couples = await createCouplesPlan();
+    const shared = await createOwnedMembership(owner, couples);
     await createManualPayment(shared, admin.id);
     await createSeat(shared.id, partner.id, { role: "PARTNER", joinedAt: shared.startsAt, endedAt: new Date(shared.startsAt.getTime() + DAY) });
-    await ownedMembership(stripeUser, couples, { source: "STRIPE" });
+    await createOwnedMembership(stripeUser, couples, { source: "STRIPE" });
 
     expect(await inTx((tx) => paidAccessHistory(tx, partner.id))).toEqual({ openAccess: true, classAccess: true });
     expect(await inTx((tx) => paidAccessHistory(tx, stripeUser.id))).toEqual({ openAccess: true, classAccess: true });
@@ -361,23 +324,23 @@ describe("resolveOpenBase", () => {
   it("does nothing for an ADDON plan or a member without an open base", async () => {
     const admin = await createUser({ role: "ADMIN" });
     const member = await createUser();
-    await ownedMembership(member, await recurringPlan());
-    expect(await resolve({ memberId: member.id, plan: await classPackPlan(), actorId: admin.id })).toEqual({ action: "none" });
+    await createOwnedMembership(member, await createPlan());
+    expect(await resolve({ memberId: member.id, plan: await createClassPackPlan(), actorId: admin.id })).toEqual({ action: "none" });
 
     const fresh = await createUser();
-    expect(await resolve({ memberId: fresh.id, plan: await recurringPlan(), actorId: admin.id })).toEqual({ action: "none" });
+    expect(await resolve({ memberId: fresh.id, plan: await createPlan(), actorId: admin.id })).toEqual({ action: "none" });
   });
 
   it.each([
-    ["Gym Trial", gymTrialPlan, "TRIAL" as const],
-    ["Day Pass", dayPassPlan, "MANUAL" as const],
+    ["Gym Trial", createGymTrialPlan, "TRIAL" as const],
+    ["Day Pass", createDayPassPlan, "MANUAL" as const],
   ])("supersedes an open %s with a recurring plan", async (_label, makePlan, source) => {
     const now = new Date();
     const admin = await createUser({ role: "ADMIN" });
     const member = await createUser();
-    const open = await ownedMembership(member, await makePlan(), { source, currentPeriodEnd: new Date(now.getTime() + 8 * HOUR) });
+    const open = await createOwnedMembership(member, await makePlan(), { source, currentPeriodEnd: new Date(now.getTime() + 8 * HOUR) });
 
-    const result = await resolve({ memberId: member.id, plan: await recurringPlan(), actorId: admin.id, now });
+    const result = await resolve({ memberId: member.id, plan: await createPlan(), actorId: admin.id, now });
 
     expect(result).toEqual({ action: "superseded", membershipId: open.id });
     expect(await db.membership.findUniqueOrThrow({ where: { id: open.id } })).toMatchObject({ status: "CANCELLED", endedAt: now });
@@ -388,11 +351,11 @@ describe("resolveOpenBase", () => {
 
   it("rejects a Day Pass on an open Gym Trial or Day Pass", async () => {
     const admin = await createUser({ role: "ADMIN" });
-    const dayPass = await dayPassPlan();
+    const dayPass = await createDayPassPlan();
     const trialMember = await createUser();
     const passMember = await createUser();
-    await ownedMembership(trialMember, await gymTrialPlan(), { source: "TRIAL" });
-    await ownedMembership(passMember, dayPass);
+    await createOwnedMembership(trialMember, await createGymTrialPlan(), { source: "TRIAL" });
+    await createOwnedMembership(passMember, dayPass);
 
     for (const member of [trialMember, passMember]) {
       const error = await expectMembershipError(resolve({ memberId: member.id, plan: dayPass, actorId: admin.id }), "HAS_ACTIVE_BASE");
@@ -405,11 +368,11 @@ describe("resolveOpenBase", () => {
     const now = new Date();
     const admin = await createUser({ role: "ADMIN" });
     const member = await createUser();
-    const open = await ownedMembership(member, await recurringPlan(), {
+    const open = await createOwnedMembership(member, await createPlan(), {
       startsAt: new Date(now.getTime() - 10 * DAY),
       currentPeriodEnd: new Date(now.getTime() + 20 * DAY - HOUR),
     });
-    const premium = await recurringPlan({ classAccess: "UNLIMITED" });
+    const premium = await createPlan({ classAccess: "UNLIMITED" });
 
     const error = await expectMembershipError(resolve({ memberId: member.id, plan: premium, actorId: admin.id, now }), "HAS_ACTIVE_BASE");
     expect(error.details).toEqual({ reason: "SWITCH_NEEDS_CONFIRMATION", remainingDays: 20, hasPartner: false });
@@ -432,13 +395,13 @@ describe("resolveOpenBase", () => {
     const admin = await createUser({ role: "ADMIN" });
     const owner = await createUser();
     const partner = await createUser();
-    const couples = await couplesPlan();
-    const open = await ownedMembership(owner, couples, { startsAt: new Date(now.getTime() - DAY) });
+    const couples = await createCouplesPlan();
+    const open = await createOwnedMembership(owner, couples, { startsAt: new Date(now.getTime() - DAY) });
     const payment = await createManualPayment(open, admin.id);
     await createSeat(open.id, partner.id, { role: "PARTNER", joinedAt: open.startsAt });
     const invite = await createMembershipInvite(open.id, owner.id);
     const freeze = await createFreeze(open.id, owner.id, { startsAt: new Date(now.getTime() + 3 * DAY) });
-    const basic = await recurringPlan();
+    const basic = await createPlan();
 
     const error = await expectMembershipError(resolve({ memberId: owner.id, plan: basic, actorId: admin.id, now }), "HAS_ACTIVE_BASE");
     expect(error.details).toEqual({ reason: "SWITCH_NEEDS_CONFIRMATION", remainingDays: 29, hasPartner: true });
@@ -458,8 +421,8 @@ describe("resolveOpenBase", () => {
   it("rejects the same plan with SAME_PLAN", async () => {
     const admin = await createUser({ role: "ADMIN" });
     const member = await createUser();
-    const plan = await recurringPlan();
-    await ownedMembership(member, plan);
+    const plan = await createPlan();
+    await createOwnedMembership(member, plan);
     await expectMembershipError(resolve({ memberId: member.id, plan, confirmSwitch: true, actorId: admin.id }), "SAME_PLAN");
   });
 
@@ -469,14 +432,14 @@ describe("resolveOpenBase", () => {
     const partner = await createUser();
     const stripeMember = await createUser();
     const oneTimeMember = await createUser();
-    const shared = await ownedMembership(owner, await couplesPlan());
+    const shared = await createOwnedMembership(owner, await createCouplesPlan());
     await createSeat(shared.id, partner.id, { role: "PARTNER" });
-    const stripeBase = await ownedMembership(stripeMember, await recurringPlan(), { source: "STRIPE" });
-    const oneTimeBase = await ownedMembership(
+    const stripeBase = await createOwnedMembership(stripeMember, await createPlan(), { source: "STRIPE" });
+    const oneTimeBase = await createOwnedMembership(
       oneTimeMember,
       await createPlan({ billing: "ONE_TIME", intervalMonths: null, durationDays: 30, durationMode: "ROLLING" }),
     );
-    const basic = await recurringPlan();
+    const basic = await createPlan();
 
     const cases = [
       [partner, "PARTNER_SEAT"],

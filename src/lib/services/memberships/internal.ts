@@ -281,8 +281,8 @@ async function switchConflict(tx: Tx, membership: LockedMembership, now: Date): 
 /**
  * Makes room for a new BASE membership when the member holds an open base seat:
  * - a trial or Day Pass the member owns is superseded by a recurring plan (ended now);
- * - a manual recurring membership the member owns is switched (ended now) with `confirmSwitch`;
- *   on the same plan `SAME_PLAN`;
+ * - a manual recurring membership the member owns is switched (ended now) to another recurring
+ *   plan with `confirmSwitch`; on the same plan `SAME_PLAN`;
  * - otherwise `HAS_ACTIVE_BASE`, with an `OpenBaseConflictDetails` reason.
  * The caller holds the member's user lock and has run overdue cleanup for the member.
  */
@@ -310,6 +310,7 @@ export async function resolveOpenBase(tx: Tx, input: ResolveOpenBaseInput): Prom
 
   if (open.source === "MANUAL" && open.plan.billing === "RECURRING") {
     if (open.planId === plan.id) throw new MembershipError("SAME_PLAN");
+    if (plan.billing !== "RECURRING") throw openBaseConflict({ reason: "SWITCH_TARGET_NOT_RECURRING" });
     if (!confirmSwitch) throw openBaseConflict(await switchConflict(tx, open, now));
     await endMembership(tx, open, {
       status: "CANCELLED",

@@ -64,7 +64,10 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
 - Integration tests hit real local services: Redis through SRH (use a unique key
   prefix) and Mailpit (`tests/support/mailpit.ts`). Requests to Better Auth go
   through the route handler with a random `x-forwarded-for` so per-IP limits
-  don't collide across runs. Factories in `tests/support/factories.ts`.
+  don't collide across runs. Factories in `tests/support/factories.ts` (plan presets,
+  `createOwnedMembership`); `expectMembershipError` in `tests/support/membership-errors.ts`.
+- Time-dependent tests fake only `Date`: `vi.useFakeTimers({ toFake: ["Date"] })` +
+  `vi.setSystemTime(...)`, restored with `vi.useRealTimers()` in `afterEach`.
 
 ## Architecture
 - `next.config.ts` enables `cacheComponents` and `partialPrefetching`; consult
@@ -79,7 +82,9 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   periods); `internal.ts` shared transaction helpers for the membership services only
   (`lockUsers`/`lockMembership`, `requireActiveAdmin`, `getGymClock`, overdue cleanup,
   `endMembership`, `resolveOpenBase`); `errors.ts` `MembershipError(code, details?)` and
-  `toMembershipError`, which maps backstop unique-index violations to domain codes.
+  `toMembershipError`, which maps backstop unique-index violations to domain codes;
+  `schemas.ts` shared Zod schemas (`noteSchema`/`reasonSchema`: trimmed, max 500, no email
+  or URL; `referenceSchema`, `manualPaymentMethodSchema`); `manual.ts` manual create/extend.
 - Database: schema in `prisma/schema.prisma`, config in `prisma.config.ts`
   (loads `.env` itself; migrations use `DIRECT_URL`, falling back to `DATABASE_URL`).
   Import the client only via `db` from `src/lib/db.ts`. Generated client lives in
