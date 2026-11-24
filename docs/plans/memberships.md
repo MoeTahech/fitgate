@@ -257,6 +257,7 @@ Every function calls `requireUser()` or `requireRole("ADMIN")`.
 
 Before writing pages, read the bundled Next 16.4.6 docs on server actions and forms
 (`useActionState`), `refresh`, dynamic params with `cacheComponents`, and `io()`.
+Pages are built with the UI foundation components (separate PR, merged first).
 Pages follow the existing pattern: content behind `<Suspense>`, `requirePageUser` first,
 `await io()` before time-dependent reads, and thin server actions that parse FormData with
 Zod, call the service, map error codes to messages, and call `refresh()`.
@@ -394,8 +395,11 @@ opening hours, and memberships):
 
 ## Implementation steps (one small commit each)
 
-Two PRs. **PR A** (steps 1–11: schema, services, tests) on `feat/memberships`. **PR B**
-(steps 12–15: pages) on `feat/memberships-ui`, branched from `main` after PR A is merged.
+**PR A** (steps 1–11: schema, services, tests) on `feat/memberships`. After it merges, a
+separate **UI foundation** PR on `feat/ui-foundation`, branched from `main`: design tokens,
+shared components, layout, and a `CLAUDE.md` rule that pages use them (planned separately
+when we get there). **PR B** (steps 12–15: pages) on `feat/memberships-ui`, branched from
+`main` after the UI foundation PR merges; its pages must use those components.
 `CLAUDE.md` is updated in the step where a convention first appears, not only at the end.
 
 PR A:
@@ -420,7 +424,9 @@ PR A:
 10. Couples invites, email template, and accept page, with tests.
 11. Read models and authorization tests.
 
-PR B:
+UI foundation PR (separate plan): design tokens, shared components, layout, `CLAUDE.md` rule.
+
+PR B (pages use the UI foundation components):
 12. Member pages.
 13. Admin members pages.
 14. Admin memberships and payments pages.
