@@ -44,6 +44,8 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
 - `npm run db:seed` seed plans, gym settings, opening hours (create-only, safe to re-run)
 - `npm run db:studio`; `npx prisma generate` (also runs on `postinstall`; Prisma 7
   `migrate dev` does not run it, so run it after schema changes)
+- `/verify` (project skill in `.claude/skills/verify/`): tsc, lint, tests in order;
+  stops at the first failure.
 - `npm test` (`vitest run`) / `npm run test:watch`. Needs Docker running and
   `TEST_DATABASE_URL` (database name must end in `_test`).
 - `npm run auth:create-admin` create the first admin (only while none exists);
