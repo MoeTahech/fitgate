@@ -136,8 +136,25 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   `localMinutes`, `localElapsedMs`, `formatLocal`, `formatLocalTime`). New code does no ad-hoc offset
   arithmetic and builds no own `Intl.DateTimeFormat`. DST gaps resolve forward, overlaps
   to the earlier instant.
+- UI: design tokens in `src/app/globals.css` (`:root` light, shipped; `.dark` defined, applied
+  only under a `.dark` class that nothing sets yet). Brand orange is only `primary`, `link`,
+  `ring`, `header-active`; statuses use the `status-*` tokens, feedback `success`/`warning`/
+  `info`/`destructive` (+ `-subtle`). `tests/ui/theme-contrast.test.ts` checks every token pair
+  for WCAG AA; add new pairs there. `src/components/ui/` holds the shadcn primitives (edit
+  freely). `src/components/` holds the app components pages use: `PageContainer`,
+  `PageHeader`/`SectionHeader`, `CenteredPage`/`CenteredCard` (auth and invite pages),
+  `FormField`/`InputField`/`SelectField`, `SubmitButton`, `FormAlert`, `TextLink`,
+  `EmptyState`, `StatusBadge` (+ `MembershipStatusBadge`, `InviteStatusBadge`; each status enum
+  gets a typed tone/label map there), `ConfirmDialog` (destructive or irreversible actions);
+  plus primitives `Button`/`buttonVariants` (links styled as buttons), `Card`, `Table`,
+  `Skeleton` (Suspense fallbacks).
 
 ## Conventions
+- Pages and feature components build only from the shared components and tokens: no raw
+  Tailwind palette classes (`zinc-`, `red-`, …), no `dark:` utilities, no one-off styling of
+  buttons, inputs, cards, badges, alerts or tables. Layout utilities (flex, grid, gap, margin,
+  width, responsive visibility) are fine. If a pattern is missing, add it to `src/components/`
+  first. Displayed dates go through `formatLocal`/`formatLocalTime`.
 - Validate all external input with Zod.
 - Authorization is enforced on the server, never only in the UI.
 - Store times in UTC; convert to the gym's time zone (`GymSettings.timeZone`) only for
