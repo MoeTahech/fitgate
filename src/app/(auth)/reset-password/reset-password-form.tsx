@@ -12,6 +12,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/client";
 import { describeAuthError, isRateLimited } from "@/lib/auth/client-errors";
 import { fieldErrors, newPasswordSchema, PASSWORD_MIN_LENGTH } from "@/lib/auth/schemas";
+import { showFieldErrors } from "@/lib/forms/field-errors";
 
 const LINK_INVALID = "This reset link is invalid or has expired.";
 
@@ -29,7 +30,7 @@ export function ResetPasswordForm() {
     setFormError(null);
     const parsed = newPasswordSchema.safeParse(Object.fromEntries(new FormData(event.currentTarget)));
     if (!parsed.success) {
-      setErrors(fieldErrors(parsed.error));
+      showFieldErrors(event.currentTarget, fieldErrors(parsed.error), setErrors);
       return;
     }
     setErrors({});
@@ -43,33 +44,26 @@ export function ResetPasswordForm() {
     setDone(true);
   }
 
-  if (done) {
-    return (
-      <CenteredCard
-        title="Password updated"
-        description="Your password has been changed and you've been signed out on all devices."
-      >
-        <Link
-          href="/sign-in"
-          className={buttonVariants({ size: "lg" })}
-        >
-          Sign in
-        </Link>
-      </CenteredCard>
-    );
-  }
-
   const linkUnusable = !token || params.has("error");
 
   return (
     <CenteredCard
-      title="Choose a new password"
-      footer={<TextLink href="/forgot-password">Request a new link</TextLink>}
+      title={done ? "Password updated" : "Choose a new password"}
+      footer={done ? undefined : <TextLink href="/forgot-password">Request a new link</TextLink>}
     >
-      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
-        {formError ? <FormAlert tone="error">{formError}</FormAlert> : null}
-        {linkUnusable ? null : (
-          <>
+      <div className="flex flex-col gap-4">
+        <FormAlert tone={done ? "success" : "error"}>
+          {done ? "Your password has been changed and you've been signed out on all devices." : formError}
+        </FormAlert>
+        {done ? (
+          <Link
+            href="/sign-in"
+            className={buttonVariants({ size: "lg" })}
+          >
+            Sign in
+          </Link>
+        ) : linkUnusable ? null : (
+          <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
             <InputField
               id="password"
               name="password"
@@ -91,9 +85,9 @@ export function ResetPasswordForm() {
               error={errors.confirmPassword}
             />
             <SubmitButton pending={pending} size="lg">{pending ? "Saving…" : "Update password"}</SubmitButton>
-          </>
+          </form>
         )}
-      </form>
+      </div>
     </CenteredCard>
   );
 }

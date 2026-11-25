@@ -11,6 +11,7 @@ import { authClient } from "@/lib/auth/client";
 import { describeAuthError } from "@/lib/auth/client-errors";
 import { safeRedirectPath, verificationCallbackURL } from "@/lib/auth/redirect";
 import { fieldErrors, PASSWORD_MIN_LENGTH, signUpSchema } from "@/lib/auth/schemas";
+import { showFieldErrors } from "@/lib/forms/field-errors";
 import { ResendVerification } from "../resend-verification";
 
 export function SignUpForm() {
@@ -25,7 +26,7 @@ export function SignUpForm() {
     setFormError(null);
     const parsed = signUpSchema.safeParse(Object.fromEntries(new FormData(event.currentTarget)));
     if (!parsed.success) {
-      setErrors(fieldErrors(parsed.error));
+      showFieldErrors(event.currentTarget, fieldErrors(parsed.error), setErrors);
       return;
     }
     setErrors({});
@@ -70,7 +71,7 @@ export function SignUpForm() {
       }
     >
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
-        {formError ? <FormAlert tone="error">{formError}</FormAlert> : null}
+        <FormAlert tone="error">{formError}</FormAlert>
         <InputField id="name" name="name" label="Name" autoComplete="name" required error={errors.name} />
         <InputField id="email" name="email" type="email" label="Email" autoComplete="email" required error={errors.email} />
         <InputField

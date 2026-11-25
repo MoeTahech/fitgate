@@ -26,7 +26,7 @@ export function ResendVerification({ email, callbackURL }: { email: string; call
 
   return (
     <div className="flex flex-col gap-3">
-      {status ? <FormAlert tone={status.tone}>{status.message}</FormAlert> : null}
+      <FormAlert tone={status?.tone ?? "success"}>{status?.message}</FormAlert>
       <Button type="button" variant="outline" size="lg" onClick={resend} disabled={pending} aria-busy={pending || undefined}>
         {pending ? "Sending…" : "Resend verification email"}
       </Button>

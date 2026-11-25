@@ -9,6 +9,7 @@ import { TextLink } from "@/components/text-link";
 import { authClient } from "@/lib/auth/client";
 import { describeAuthError } from "@/lib/auth/client-errors";
 import { emailOnlySchema, fieldErrors } from "@/lib/auth/schemas";
+import { showFieldErrors } from "@/lib/forms/field-errors";
 
 export function ForgotPasswordForm() {
   const [error, setError] = useState<string | undefined>();
@@ -21,7 +22,7 @@ export function ForgotPasswordForm() {
     setFormError(null);
     const parsed = emailOnlySchema.safeParse(Object.fromEntries(new FormData(event.currentTarget)));
     if (!parsed.success) {
-      setError(fieldErrors(parsed.error).email);
+      showFieldErrors(event.currentTarget, fieldErrors(parsed.error), (errors) => setError(errors.email));
       return;
     }
     setError(undefined);
@@ -44,17 +45,17 @@ export function ForgotPasswordForm() {
       description="Enter the email you signed up with and we'll send you a reset link."
       footer={<TextLink href="/sign-in">Back to sign in</TextLink>}
     >
-      {sent ? (
-        <FormAlert tone="success">
-          If an account exists for that email, a reset link is on its way. It expires in 1 hour.
+      <div className="flex flex-col gap-4">
+        <FormAlert tone={sent ? "success" : "error"}>
+          {sent ? "If an account exists for that email, a reset link is on its way. It expires in 1 hour." : formError}
         </FormAlert>
-      ) : (
-        <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
-          {formError ? <FormAlert tone="error">{formError}</FormAlert> : null}
-          <InputField id="email" name="email" type="email" label="Email" autoComplete="email" required error={error} />
-          <SubmitButton pending={pending} size="lg">{pending ? "Sending…" : "Send reset link"}</SubmitButton>
-        </form>
-      )}
+        {sent ? null : (
+          <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
+            <InputField id="email" name="email" type="email" label="Email" autoComplete="email" required error={error} />
+            <SubmitButton pending={pending} size="lg">{pending ? "Sending…" : "Send reset link"}</SubmitButton>
+          </form>
+        )}
+      </div>
     </CenteredCard>
   );
 }

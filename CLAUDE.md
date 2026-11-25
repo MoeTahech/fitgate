@@ -148,7 +148,9 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   freely). `src/components/` holds the app components pages use: `PageContainer`,
   `PageHeader`/`SectionHeader`, `CenteredPage`/`CenteredCard` (auth and invite pages),
   `FormField`/`InputField`/`SelectField`, `SubmitButton`, `FormAlert` (form-level messages),
-  `InlineStatus` (result line next to a row action), `TextLink`, `Pagination`, `EmptyState`, `StatusBadge` (+ `MembershipStatusBadge`, `InviteStatusBadge`; each status enum
+  `InlineStatus` (result line next to a row action; both are always-mounted live regions built
+  on `LiveRegions`: in client components render them unconditionally and pass the message or
+  nothing, and keep them at the same tree position when a success view replaces a form), `TextLink`, `Pagination`, `EmptyState`, `StatusBadge` (+ `MembershipStatusBadge`, `InviteStatusBadge`; each status enum
   gets a typed tone/label map there), `ConfirmDialog` (destructive or irreversible actions; pass `finalFocus` when the action can
   remove its own trigger, and show row-action results above the list, not in the row),
   `DataTable` (record lists: column config; a table when its container is at least `@2xl`
@@ -171,7 +173,9 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   `DataTable`, never the `Table` primitive directly in pages.
   `tests/ui/no-raw-styles.test.ts` fails on palette colors, black/white, arbitrary colors,
   `dark:` or a `ui/table` import in `src/app` and `src/components` (`src/components/ui/` excluded).
-- Validate all external input with Zod.
+- Validate all external input with Zod. Client forms show Zod field errors with
+  `showFieldErrors(form, errors, setErrors)` from `src/lib/forms/field-errors.ts` (flushes the
+  errors, then focuses the first invalid field so its error is read out).
 - Authorization is enforced on the server, never only in the UI.
 - Store times in UTC; convert to the gym's time zone (`GymSettings.timeZone`) only for
   display and for local-calendar math (periods, opening hours), via `src/lib/time.ts`.

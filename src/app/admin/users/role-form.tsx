@@ -30,7 +30,7 @@ export function RoleForm({ userId, userName, role }: { userId: string; userName:
           {pending ? "Saving…" : "Save"}
         </SubmitButton>
       </div>
-      {state.message ? <InlineStatus tone={state.status === "error" ? "error" : "success"}>{state.message}</InlineStatus> : null}
+      <InlineStatus tone={state.status === "error" ? "error" : "success"}>{state.message}</InlineStatus>
     </form>
   );
 }

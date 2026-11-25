@@ -13,6 +13,7 @@ import { authClient } from "@/lib/auth/client";
 import { describeAuthError } from "@/lib/auth/client-errors";
 import { safeRedirectPath, verificationCallbackURL } from "@/lib/auth/redirect";
 import { emailOnlySchema, fieldErrors } from "@/lib/auth/schemas";
+import { showFieldErrors } from "@/lib/forms/field-errors";
 
 export function VerifyEmailView() {
   const params = useSearchParams();
@@ -50,7 +51,7 @@ function ResendForm({ next, failed }: { next: string; failed: boolean }) {
     setStatus(null);
     const parsed = emailOnlySchema.safeParse(Object.fromEntries(new FormData(event.currentTarget)));
     if (!parsed.success) {
-      setError(fieldErrors(parsed.error).email);
+      showFieldErrors(event.currentTarget, fieldErrors(parsed.error), (errors) => setError(errors.email));
       return;
     }
     setError(undefined);
@@ -78,7 +79,7 @@ function ResendForm({ next, failed }: { next: string; failed: boolean }) {
       footer={<TextLink href={`/sign-in?next=${encodeURIComponent(next)}`}>Back to sign in</TextLink>}
     >
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
-        {status ? <FormAlert tone={status.tone}>{status.message}</FormAlert> : null}
+        <FormAlert tone={status?.tone ?? "success"}>{status?.message}</FormAlert>
         <InputField id="email" name="email" type="email" label="Email" autoComplete="email" required error={error} />
         <SubmitButton pending={pending} size="lg">{pending ? "Sending…" : "Send verification link"}</SubmitButton>
       </form>

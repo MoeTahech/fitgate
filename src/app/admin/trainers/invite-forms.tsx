@@ -15,6 +15,7 @@ import { FormAlert } from "@/components/form-alert";
 import { FormField } from "@/components/form-field";
 import { SubmitButton } from "@/components/submit-button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
   createInviteAction,
   resendInviteAction,
@@ -37,7 +38,7 @@ export function CreateInviteForm() {
           </div>
         )}
       </FormField>
-      {state.message ? <FormAlert tone={state.status === "error" ? "error" : "success"}>{state.message}</FormAlert> : null}
+      <FormAlert tone={state.status === "error" ? "error" : "success"}>{state.message}</FormAlert>
     </form>
   );
 }
@@ -89,12 +90,8 @@ export function InviteResults() {
   const { pending, result, resultsRef } = useInviteActions();
   const message = describeInviteResult(result, pending);
   return (
-    <div ref={resultsRef} tabIndex={-1} className="outline-none">
-      {message ? (
-        <div className="mb-3">
-          <FormAlert tone={message.tone}>{message.text}</FormAlert>
-        </div>
-      ) : null}
+    <div ref={resultsRef} tabIndex={-1} className={cn("outline-none", message && "mb-3")}>
+      <FormAlert tone={message?.tone ?? "info"}>{message?.text}</FormAlert>
     </div>
   );
 }

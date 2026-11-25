@@ -10,6 +10,7 @@ import { TextLink } from "@/components/text-link";
 import { authClient } from "@/lib/auth/client";
 import { describeAuthError } from "@/lib/auth/client-errors";
 import { hardNavigate } from "@/lib/auth/navigation";
+import { showFieldErrors } from "@/lib/forms/field-errors";
 import { safeRedirectPath, verificationCallbackURL } from "@/lib/auth/redirect";
 import { fieldErrors, signInSchema } from "@/lib/auth/schemas";
 import { ResendVerification } from "../resend-verification";
@@ -29,7 +30,7 @@ export function SignInForm() {
     setUnverifiedEmail(null);
     const parsed = signInSchema.safeParse(Object.fromEntries(new FormData(event.currentTarget)));
     if (!parsed.success) {
-      setErrors(fieldErrors(parsed.error));
+      showFieldErrors(event.currentTarget, fieldErrors(parsed.error), setErrors);
       return;
     }
     setErrors({});
@@ -60,15 +61,11 @@ export function SignInForm() {
       }
     >
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
-        {formError ? <FormAlert tone="error">{formError}</FormAlert> : null}
-        {unverifiedEmail ? (
-          <div className="flex flex-col gap-3">
-            <FormAlert tone="info">
-              Please verify your email address first. We&apos;ve sent a new link to your inbox.
-            </FormAlert>
-            <ResendVerification email={unverifiedEmail} callbackURL={verificationCallbackURL(next)} />
-          </div>
-        ) : null}
+        <FormAlert tone="error">{formError}</FormAlert>
+        <FormAlert tone="info">
+          {unverifiedEmail ? "Please verify your email address first. We've sent a new link to your inbox." : null}
+        </FormAlert>
+        {unverifiedEmail ? <ResendVerification email={unverifiedEmail} callbackURL={verificationCallbackURL(next)} /> : null}
         <InputField id="email" name="email" type="email" label="Email" autoComplete="email" required error={errors.email} />
         <div className="flex flex-col gap-1.5">
           <InputField
