@@ -1,6 +1,12 @@
 "use client";
 
 import { useActionState } from "react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { FormAlert } from "@/components/form-alert";
+import { FormField } from "@/components/form-field";
+import { InlineStatus } from "@/components/inline-status";
+import { SubmitButton } from "@/components/submit-button";
+import { Input } from "@/components/ui/input";
 import {
   createInviteAction,
   resendInviteAction,
@@ -10,75 +16,65 @@ import {
 
 const IDLE: InviteFormState = { status: "idle" };
 
-function StatusMessage({ state }: { state: InviteFormState }) {
-  if (!state.message) return null;
-  return (
-    <p
-      role={state.status === "error" ? "alert" : "status"}
-      className={`text-sm ${state.status === "error" ? "text-red-700 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}
-    >
-      {state.message}
-    </p>
-  );
-}
-
 export function CreateInviteForm() {
   const [state, action, pending] = useActionState(createInviteAction, IDLE);
   return (
-    <form action={action} className="flex flex-col gap-2">
-      <label htmlFor="invite-email" className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-        Invite a trainer by email
-      </label>
-      <div className="flex gap-2">
-        <input
-          id="invite-email"
-          name="email"
-          type="email"
-          required
-          maxLength={254}
-          autoComplete="off"
-          className="h-10 flex-1 rounded-md border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-        />
-        <button
-          type="submit"
-          disabled={pending}
-          className="h-10 rounded-md bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
-        >
-          {pending ? "Sending…" : "Send invite"}
-        </button>
-      </div>
-      <StatusMessage state={state} />
+    <form action={action} className="flex flex-col gap-3">
+      <FormField id="invite-email" label="Invite a trainer by email">
+        {(control) => (
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Input {...control} name="email" type="email" required maxLength={254} autoComplete="off" className="sm:flex-1" />
+            <SubmitButton pending={pending}>{pending ? "Sending…" : "Send invite"}</SubmitButton>
+          </div>
+        )}
+      </FormField>
+      {state.message ? <FormAlert tone={state.status === "error" ? "error" : "success"}>{state.message}</FormAlert> : null}
     </form>
   );
 }
 
-const SECONDARY_BUTTON =
-  "h-8 rounded-md border border-zinc-300 px-3 text-xs font-medium hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-900";
-
-export function InviteActions({ inviteId, canRevoke, canResend }: { inviteId: string; canRevoke: boolean; canResend: boolean }) {
+export function InviteActions({
+  inviteId,
+  email,
+  canRevoke,
+  canResend,
+}: {
+  inviteId: string;
+  email: string;
+  canRevoke: boolean;
+  canResend: boolean;
+}) {
   const [revokeState, revoke, revoking] = useActionState(revokeInviteAction, IDLE);
   const [resendState, resend, resending] = useActionState(resendInviteAction, IDLE);
+  const message = resendState.message ? resendState : revokeState;
   return (
     <div className="flex flex-col items-end gap-1">
       <div className="flex gap-2">
         {canResend ? (
           <form action={resend}>
             <input type="hidden" name="inviteId" value={inviteId} />
-            <button type="submit" disabled={resending} className={SECONDARY_BUTTON}>
+            <SubmitButton pending={resending} variant="outline" size="sm">
               {resending ? "Sending…" : "Resend"}
-            </button>
+            </SubmitButton>
           </form>
         ) : null}
         {canRevoke ? (
-          <form action={revoke}>
+          <ConfirmDialog
+            triggerLabel="Revoke"
+            pendingLabel="Revoking…"
+            triggerSize="sm"
+            title="Revoke this invite?"
+            description={`The link sent to ${email} will stop working. You can send a new invite later.`}
+            confirmLabel="Revoke invite"
+            tone="destructive"
+            action={revoke}
+            pending={revoking}
+          >
             <input type="hidden" name="inviteId" value={inviteId} />
-            <button type="submit" disabled={revoking} className={`${SECONDARY_BUTTON} text-red-700 dark:text-red-400`}>
-              {revoking ? "Revoking…" : "Revoke"}
-            </button>
-          </form>
+          </ConfirmDialog>
         ) : null}
       </div>
-      <StatusMessage state={resendState.message ? resendState : revokeState} />
+      {message.message ? <InlineStatus tone={message.status === "error" ? "error" : "success"}>{message.message}</InlineStatus> : null}
     </div>
   );
 }

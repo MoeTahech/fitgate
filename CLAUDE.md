@@ -143,8 +143,8 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   for WCAG AA; add new pairs there. `src/components/ui/` holds the shadcn primitives (edit
   freely). `src/components/` holds the app components pages use: `PageContainer`,
   `PageHeader`/`SectionHeader`, `CenteredPage`/`CenteredCard` (auth and invite pages),
-  `FormField`/`InputField`/`SelectField`, `SubmitButton`, `FormAlert`, `TextLink`,
-  `EmptyState`, `StatusBadge` (+ `MembershipStatusBadge`, `InviteStatusBadge`; each status enum
+  `FormField`/`InputField`/`SelectField`, `SubmitButton`, `FormAlert` (form-level messages),
+  `InlineStatus` (result line next to a row action), `TextLink`, `Pagination`, `EmptyState`, `StatusBadge` (+ `MembershipStatusBadge`, `InviteStatusBadge`; each status enum
   gets a typed tone/label map there), `ConfirmDialog` (destructive or irreversible actions);
   plus primitives `Button`/`buttonVariants` (links styled as buttons), `Card`, `Table`,
   `Skeleton` (Suspense fallbacks).

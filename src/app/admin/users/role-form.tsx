@@ -1,6 +1,9 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
+import { InlineStatus } from "@/components/inline-status";
+import { SubmitButton } from "@/components/submit-button";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { ROLE_LABELS, ROLES, type AppRole } from "@/lib/auth/constants";
 import { hardNavigate } from "@/lib/auth/navigation";
 import { changeRoleAction, type RoleFormState } from "./actions";
@@ -16,34 +19,18 @@ export function RoleForm({ userId, userName, role }: { userId: string; userName:
     <form action={action} className="flex flex-col items-end gap-1">
       <input type="hidden" name="userId" value={userId} />
       <div className="flex items-center gap-2">
-        <select
-          name="role"
-          defaultValue={role}
-          aria-label={`Role for ${userName}`}
-          className="h-9 rounded-md border border-zinc-300 bg-white px-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-        >
+        <NativeSelect name="role" defaultValue={role} size="sm" aria-label={`Role for ${userName}`}>
           {ROLES.map((value) => (
-            <option key={value} value={value}>
+            <NativeSelectOption key={value} value={value}>
               {ROLE_LABELS[value]}
-            </option>
+            </NativeSelectOption>
           ))}
-        </select>
-        <button
-          type="submit"
-          disabled={pending}
-          className="h-9 rounded-md bg-zinc-900 px-3 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
-        >
+        </NativeSelect>
+        <SubmitButton pending={pending} size="sm">
           {pending ? "Saving…" : "Save"}
-        </button>
+        </SubmitButton>
       </div>
-      {state.message ? (
-        <p
-          role={state.status === "error" ? "alert" : "status"}
-          className={`text-xs ${state.status === "error" ? "text-red-700 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}
-        >
-          {state.message}
-        </p>
-      ) : null}
+      {state.message ? <InlineStatus tone={state.status === "error" ? "error" : "success"}>{state.message}</InlineStatus> : null}
     </form>
   );
 }

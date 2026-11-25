@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
+import { Pagination } from "@/components/pagination";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePageUser } from "@/lib/auth/session";
 import { listUsers } from "@/lib/services/users";
 import { RoleForm } from "./role-form";
@@ -24,46 +31,53 @@ async function UsersTable({ searchParams }: { searchParams: PageProps<"/admin/us
   return (
     <>
       <form role="search" className="mb-4 flex gap-2">
-        <input
+        <Input
           type="search"
           name="q"
           defaultValue={query}
           placeholder="Search by name or email"
           aria-label="Search users"
           maxLength={100}
-          className="h-10 flex-1 rounded-md border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="flex-1"
         />
-        <button type="submit" className="h-10 rounded-md border border-zinc-300 px-4 text-sm font-medium dark:border-zinc-700">
+        <Button type="submit" variant="outline">
           Search
-        </button>
+        </Button>
       </form>
 
-      <p className="mb-2 text-sm text-zinc-500">
+      <p className="mb-2 text-sm text-muted-foreground">
         {total} {total === 1 ? "user" : "users"}
       </p>
 
-      <ul className="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-950">
-        {users.map((user) => (
-          <li key={user.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p className="truncate font-medium text-zinc-900 dark:text-zinc-100">{user.name}</p>
-              <p className="truncate text-sm text-zinc-500">{user.email}</p>
-            </div>
-            <RoleForm userId={user.id} userName={user.name} role={user.role} />
-          </li>
-        ))}
-        {users.length === 0 ? <li className="p-6 text-center text-sm text-zinc-500">No users found.</li> : null}
-      </ul>
+      {users.length === 0 ? (
+        <EmptyState title="No users found" description={query ? "Try a different name or email." : undefined} />
+      ) : (
+        <Card className="py-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="px-4">User</TableHead>
+                <TableHead className="px-4 text-right">Role</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell className="max-w-64 px-4 py-3">
+                    <p className="truncate font-medium">{user.name}</p>
+                    <p className="truncate text-muted-foreground">{user.email}</p>
+                  </TableCell>
+                  <TableCell className="px-4 py-3">
+                    <RoleForm userId={user.id} userName={user.name} role={user.role} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
 
-      {pageCount > 1 ? (
-        <nav aria-label="Pagination" className="mt-4 flex items-center justify-between text-sm">
-          {page > 1 ? <Link href={pageHref(page - 1)} className="underline">Previous</Link> : <span />}
-          <span className="text-zinc-500">
-            Page {page} of {pageCount}
-          </span>
-          {page < pageCount ? <Link href={pageHref(page + 1)} className="underline">Next</Link> : <span />}
-        </nav>
-      ) : null}
+      <Pagination page={page} pageCount={pageCount} hrefFor={pageHref} />
     </>
   );
 }
@@ -71,8 +85,8 @@ async function UsersTable({ searchParams }: { searchParams: PageProps<"/admin/us
 export default function AdminUsersPage({ searchParams }: PageProps<"/admin/users">) {
   return (
     <main>
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">Users</h1>
-      <Suspense fallback={<div className="h-64 animate-pulse rounded-xl bg-zinc-100 dark:bg-zinc-900" />}>
+      <PageHeader title="Users" />
+      <Suspense fallback={<Skeleton className="h-64 rounded-xl" />}>
         <UsersTable searchParams={searchParams} />
       </Suspense>
     </main>

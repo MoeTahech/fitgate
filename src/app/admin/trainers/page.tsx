@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader, SectionHeader } from "@/components/page-header";
+import { InviteStatusBadge } from "@/components/status-badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePageUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { listTrainerInvites } from "@/lib/services/trainer-invites";
+import { formatLocal } from "@/lib/time";
 import { CreateInviteForm, InviteActions } from "./invite-forms";
 
 export const metadata: Metadata = { title: "Trainers" };
-
-const STATUS_STYLES = {
-  PENDING: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
-  ACCEPTED: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200",
-  REVOKED: "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-  EXPIRED: "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-} as const;
 
 async function TrainerInvites() {
   await requirePageUser("/admin/trainers", "ADMIN");
@@ -20,46 +20,64 @@ async function TrainerInvites() {
     listTrainerInvites(),
     db.gymSettings.findUnique({ where: { id: 1 }, select: { timeZone: true } }),
   ]);
-  const formatDate = new Intl.DateTimeFormat("en-GB", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: settings?.timeZone ?? "Asia/Beirut",
-  });
+  const timeZone = settings?.timeZone ?? "Asia/Beirut";
 
   return (
-    <div className="flex flex-col gap-6">
-      <section className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-        <CreateInviteForm />
-      </section>
+    <div className="flex flex-col gap-8">
+      <Card>
+        <CardContent>
+          <CreateInviteForm />
+        </CardContent>
+      </Card>
 
       <section>
-        <h2 className="mb-3 text-lg font-semibold text-zinc-900 dark:text-zinc-50">Invites</h2>
-        <ul className="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-950">
-          {invites.map((invite) => (
-            <li key={invite.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="flex items-center gap-2">
-                  <span className="truncate font-medium text-zinc-900 dark:text-zinc-100">{invite.email}</span>
-                  <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${STATUS_STYLES[invite.status]}`}>
-                    {invite.status.toLowerCase()}
-                  </span>
-                </p>
-                <p className="text-sm text-zinc-500">
-                  Invited by {invite.invitedByName} on {formatDate.format(invite.createdAt)}
-                  {invite.status === "PENDING" ? ` · expires ${formatDate.format(invite.expiresAt)}` : null}
-                </p>
-              </div>
-              {invite.status === "PENDING" || invite.status === "EXPIRED" ? (
-                <InviteActions
-                  inviteId={invite.id}
-                  canRevoke={invite.status === "PENDING"}
-                  canResend
-                />
-              ) : null}
-            </li>
-          ))}
-          {invites.length === 0 ? <li className="p-6 text-center text-sm text-zinc-500">No invites yet.</li> : null}
-        </ul>
+        <SectionHeader title="Invites" />
+        {invites.length === 0 ? (
+          <EmptyState title="No invites yet" description="Invites you send appear here." />
+        ) : (
+          <Card className="py-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="px-4">Email</TableHead>
+                  <TableHead className="px-4">Status</TableHead>
+                  <TableHead className="px-4">Invited</TableHead>
+                  <TableHead className="px-4">Expires</TableHead>
+                  <TableHead className="px-4 text-right">
+                    <span className="sr-only">Actions</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {invites.map((invite) => (
+                  <TableRow key={invite.id}>
+                    <TableCell className="px-4 py-3 font-medium">{invite.email}</TableCell>
+                    <TableCell className="px-4 py-3">
+                      <InviteStatusBadge status={invite.status} />
+                    </TableCell>
+                    <TableCell className="px-4 py-3">
+                      <p>{formatLocal(invite.createdAt, timeZone)}</p>
+                      <p className="text-muted-foreground">by {invite.invitedByName}</p>
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-muted-foreground">
+                      {invite.status === "PENDING" ? formatLocal(invite.expiresAt, timeZone) : "—"}
+                    </TableCell>
+                    <TableCell className="px-4 py-3">
+                      {invite.status === "PENDING" || invite.status === "EXPIRED" ? (
+                        <InviteActions
+                          inviteId={invite.id}
+                          email={invite.email}
+                          canRevoke={invite.status === "PENDING"}
+                          canResend
+                        />
+                      ) : null}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        )}
       </section>
     </div>
   );
@@ -68,8 +86,8 @@ async function TrainerInvites() {
 export default function AdminTrainersPage() {
   return (
     <main>
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">Trainers</h1>
-      <Suspense fallback={<div className="h-64 animate-pulse rounded-xl bg-zinc-100 dark:bg-zinc-900" />}>
+      <PageHeader title="Trainers" />
+      <Suspense fallback={<Skeleton className="h-64 rounded-xl" />}>
         <TrainerInvites />
       </Suspense>
     </main>
