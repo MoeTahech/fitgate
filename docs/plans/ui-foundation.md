@@ -137,7 +137,13 @@ Added via the CLI, then adjusted to the tokens. Generated files may use any util
   `aria-busy`), same API as today.
 - `form-alert.tsx`: `FormAlert({ tone })` over `Alert`; `role="alert"` for errors, `status`
   otherwise (today's behavior).
+- `inline-status.tsx`: `InlineStatus({ tone: "error" | "success" })`, a short result line next
+  to a row action in a table or list (where a full `FormAlert` is too bulky); `role="alert"`
+  for errors, `status` otherwise. Added in step 9.
 - `text-link.tsx`: `TextLink` (next/link, `text-link underline hover:text-link-hover`).
+- `pagination.tsx`: `Pagination({ page, pageCount, hrefFor })`, Previous/Next links (outline
+  buttons) around "Page X of Y"; renders nothing for a single page. Server component, so
+  `hrefFor` stays a plain function. Added in step 9 for admin users; PR B's lists reuse it.
 - `page-header.tsx`: `PageHeader({ title, description?, actions? })`, the page's only `<h1>`.
 - `empty-state.tsx`: `EmptyState({ title, description?, action?, icon? })` over `Empty`.
 - `status-badge.tsx`: `StatusBadge({ tone, children })`, plus `MembershipStatusBadge`
@@ -173,7 +179,8 @@ Added via the CLI, then adjusted to the tokens. Generated files may use any util
 
 Pattern for every page: `PageHeader` or `CenteredCard` for the heading, `FormField`/`InputField`/
 `SelectField` and `SubmitButton` for forms, `FormAlert` for form-level messages (replacing inline
-red/green status text), `Card` for panels, `Table` for lists, `EmptyState` for empty lists,
+red/green status text), `InlineStatus` for row-action results, `Card` for panels, `Table` for
+lists, `Pagination` for paged lists, `EmptyState` for empty lists,
 `Skeleton` for Suspense fallbacks, `TextLink` and `buttonVariants` for links. No logic, action,
 validation or copy changes beyond labels from the status maps.
 
@@ -185,9 +192,10 @@ validation or copy changes beyond labels from the status maps.
 - Invite accept: `src/app/invite/trainer/[token]/*`, `src/app/invite/membership/[token]/*`.
 - Admin trainers (`src/app/admin/trainers/*`): Table, `InviteStatusBadge`, `EmptyState`,
   `formatLocal(…, timeZone)` instead of the page's `Intl.DateTimeFormat`, Revoke behind
-  `ConfirmDialog`.
+  `ConfirmDialog`, Resend/Revoke results via `InlineStatus`.
 - Also migrated so the new rule holds everywhere: admin users (`src/app/admin/users/*`: search,
-  Table, role `SelectField`, pagination) and the landing page (`src/app/page.tsx`).
+  Table, role `NativeSelect` with an `aria-label` (inline in the row, no visible label),
+  `InlineStatus` for the save result, `Pagination`) and the landing page (`src/app/page.tsx`).
 - `src/lib/email/templates.ts` `trainerInviteEmail` uses `formatLocal(…, { dateStyle: "long",
   timeStyle: "short" })` like `membershipInviteEmail` (same output; existing test stays green).
 
