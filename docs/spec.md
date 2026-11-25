@@ -203,6 +203,9 @@ Admins can record payments made outside Stripe.
   is still running (`now < currentPeriodEnd`). The new period starts at the current
   period end, so coverage has no gaps. A plan that is no longer active can still be
   extended, at its current price.
+- Manual extensions add months from the current end, not from the start date, so a
+  month-end start clamps once and stays there (31 Jan -> 28 Feb -> 28 Mar). This is
+  accepted; Stripe billing anchors come in milestone 2b.
 - A lapsed membership is not extended: a late payer gets a new membership, and
   overdue cleanup closes the old one in the same transaction.
 - One-time plans (Day Pass, Class Pack, trials) are never extended; buying one again
