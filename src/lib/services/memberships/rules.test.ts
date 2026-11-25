@@ -6,15 +6,19 @@ import {
   closingTimeOn,
   computePeriod,
   effectiveStatus,
+  freezeDisplayStatus,
   isAutoRenewing,
   isEnded,
   isOverdue,
   isUsableAt,
+  openBaseReplacement,
   overdueEndStatus,
+  remainingUsableDays,
   remainingUsableMs,
   type FreezeWindow,
   type GymClock,
   type MembershipState,
+  type OpenBase,
   type PeriodPlan,
 } from "./rules";
 
@@ -293,6 +297,94 @@ describe("remainingUsableMs", () => {
     expect(remainingUsableMs(membership(), [], END)).toBe(0);
     expect(remainingUsableMs(membership({ status: "CANCELLED" }), [], now)).toBe(0);
     expect(remainingUsableMs(membership({ status: "FROZEN" }), [], now)).toBe(0);
+  });
+});
+
+describe("remainingUsableDays", () => {
+  const now = at("2027-01-20T08:00:00Z");
+
+  it("rounds partial days up and excludes approved freezes", () => {
+    expect(remainingUsableDays(membership(), [], now)).toBe(12);
+    expect(remainingUsableDays(membership(), [], shift(now, HOUR))).toBe(12);
+    expect(remainingUsableDays(membership(), [freeze("2027-01-24T08:00:00Z", "2027-01-29T08:00:00Z")], now)).toBe(7);
+  });
+
+  it("is zero once the period is over", () => {
+    expect(remainingUsableDays(membership(), [], END)).toBe(0);
+  });
+});
+
+describe("freezeDisplayStatus", () => {
+  const f = (status: FreezeStatus) => freeze("2027-01-10T22:00:00Z", "2027-01-17T22:00:00Z", status);
+  const before = at("2027-01-10T21:59:59Z");
+  const started = at("2027-01-10T22:00:00Z");
+  const over = at("2027-01-17T22:00:00Z");
+
+  it("shows a request whose start has passed as lapsed (CANCELLED)", () => {
+    expect(freezeDisplayStatus(f("REQUESTED"), before)).toBe("REQUESTED");
+    expect(freezeDisplayStatus(f("REQUESTED"), started)).toBe("CANCELLED");
+  });
+
+  it("shows an approved freeze as COMPLETED once it is over", () => {
+    expect(freezeDisplayStatus(f("APPROVED"), started)).toBe("APPROVED");
+    expect(freezeDisplayStatus(f("APPROVED"), shift(over, -1))).toBe("APPROVED");
+    expect(freezeDisplayStatus(f("APPROVED"), over)).toBe("COMPLETED");
+  });
+
+  it.each<FreezeStatus>(["REJECTED", "CANCELLED", "COMPLETED"])("keeps a settled %s freeze", (status) => {
+    expect(freezeDisplayStatus(f(status), over)).toBe(status);
+  });
+});
+
+describe("openBaseReplacement", () => {
+  const basic = { id: "basic", type: "BASE", billing: "RECURRING" } as const;
+  const premium = { id: "premium", type: "BASE", billing: "RECURRING" } as const;
+  const dayPass = { id: "day-pass", type: "BASE", billing: "ONE_TIME" } as const;
+  const classPack = { id: "class-pack", type: "ADDON", billing: "ONE_TIME" } as const;
+
+  const recurringPlan = { billing: "RECURRING", durationMode: null } as const;
+  const dayPassPlan = { billing: "ONE_TIME", durationMode: "CALENDAR_DAYS" } as const;
+  const rollingPlan = { billing: "ONE_TIME", durationMode: "ROLLING" } as const;
+
+  const open = (overrides: Partial<OpenBase> = {}): OpenBase => ({
+    seatRole: "OWNER",
+    source: "MANUAL",
+    planId: basic.id,
+    plan: recurringPlan,
+    ...overrides,
+  });
+
+  it("does nothing for an add-on or without an open base", () => {
+    expect(openBaseReplacement(open(), classPack)).toEqual({ action: "none" });
+    expect(openBaseReplacement(null, basic)).toEqual({ action: "none" });
+  });
+
+  it("supersedes a trial or Day Pass with a recurring plan only", () => {
+    const trial = open({ source: "TRIAL", planId: "gym-trial", plan: dayPassPlan });
+    const pass = open({ planId: dayPass.id, plan: dayPassPlan });
+    expect(openBaseReplacement(trial, basic)).toEqual({ action: "supersede" });
+    expect(openBaseReplacement(pass, basic)).toEqual({ action: "supersede" });
+    expect(openBaseReplacement(trial, dayPass)).toEqual({ action: "conflict", reason: "DAY_PASS_OR_TRIAL" });
+    expect(openBaseReplacement(pass, dayPass)).toEqual({ action: "conflict", reason: "DAY_PASS_OR_TRIAL" });
+  });
+
+  it("switches a manual recurring base to another recurring plan, not to the same or a one-time plan", () => {
+    expect(openBaseReplacement(open(), premium)).toEqual({ action: "switch" });
+    expect(openBaseReplacement(open(), basic)).toEqual({ action: "same_plan" });
+    expect(openBaseReplacement(open(), dayPass)).toEqual({ action: "conflict", reason: "SWITCH_TARGET_NOT_RECURRING" });
+  });
+
+  it("rejects a partner seat, a Stripe base, and another one-time base", () => {
+    expect(openBaseReplacement(open({ seatRole: "PARTNER" }), premium)).toEqual({ action: "conflict", reason: "PARTNER_SEAT" });
+    expect(openBaseReplacement(open({ seatRole: "PARTNER", source: "TRIAL", plan: dayPassPlan }), premium)).toEqual({
+      action: "conflict",
+      reason: "PARTNER_SEAT",
+    });
+    expect(openBaseReplacement(open({ source: "STRIPE" }), premium)).toEqual({ action: "conflict", reason: "STRIPE_BASE" });
+    expect(openBaseReplacement(open({ planId: "pass-7", plan: rollingPlan }), premium)).toEqual({
+      action: "conflict",
+      reason: "ONE_TIME_BASE",
+    });
   });
 });
 

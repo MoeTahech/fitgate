@@ -5,11 +5,10 @@ import type { AppRole } from "@/lib/auth/constants";
 import { rateLimit, type RateLimitPolicy } from "@/lib/rate-limit";
 import { audit } from "@/lib/services/audit";
 import { MembershipError, type OpenBaseConflictDetails } from "./errors";
-import { isOverdue, overdueEndStatus, remainingUsableMs, type FreezeWindow, type GymClock } from "./rules";
+import { isOverdue, openBaseReplacement, overdueEndStatus, remainingUsableDays, type FreezeWindow, type GymClock } from "./rules";
 
 export type Tx = Prisma.TransactionClient;
 
-const DAY_MS = 86_400_000;
 export const DEFAULT_TIME_ZONE = "Asia/Beirut";
 
 /** Payments that still pay for their covered period. */
@@ -290,10 +289,6 @@ export type OpenBaseResolution =
   | { action: "none" }
   | { action: "superseded" | "switched"; membershipId: string };
 
-function isCalendarDayPlan(plan: Pick<Plan, "billing" | "durationMode">): boolean {
-  return plan.billing === "ONE_TIME" && plan.durationMode === "CALENDAR_DAYS";
-}
-
 function openBaseConflict(details: OpenBaseConflictDetails): MembershipError {
   return new MembershipError("HAS_ACTIVE_BASE", details);
 }
@@ -305,7 +300,7 @@ async function switchConflict(tx: Tx, membership: LockedMembership, now: Date): 
   });
   return {
     reason: "SWITCH_NEEDS_CONFIRMATION",
-    remainingDays: Math.ceil(remainingUsableMs(membership, freezes, now) / DAY_MS),
+    remainingDays: remainingUsableDays(membership, freezes, now),
     hasPartner: partners > 0,
   };
 }
@@ -332,29 +327,31 @@ export async function resolveOpenBase(tx: Tx, input: ResolveOpenBaseInput): Prom
   }
 
   const open = seat.membership;
-  if (seat.role !== "OWNER") throw openBaseConflict({ reason: "PARTNER_SEAT" });
-
-  if (open.source === "TRIAL" || isCalendarDayPlan(open.plan)) {
-    if (plan.billing !== "RECURRING") throw openBaseConflict({ reason: "DAY_PASS_OR_TRIAL" });
-    await endMembership(tx, open, { status: "CANCELLED", endedAt: now, now, via: "superseded", actorId, ipHash });
-    return { action: "superseded", membershipId: open.id };
+  const replacement = openBaseReplacement(
+    { seatRole: seat.role, source: open.source, planId: open.planId, plan: open.plan },
+    plan,
+  );
+  switch (replacement.action) {
+    case "none":
+      return { action: "none" };
+    case "conflict":
+      throw openBaseConflict({ reason: replacement.reason });
+    case "same_plan":
+      throw new MembershipError("SAME_PLAN");
+    case "supersede":
+      await endMembership(tx, open, { status: "CANCELLED", endedAt: now, now, via: "superseded", actorId, ipHash });
+      return { action: "superseded", membershipId: open.id };
+    case "switch":
+      if (!confirmSwitch) throw openBaseConflict(await switchConflict(tx, open, now));
+      await endMembership(tx, open, {
+        status: "CANCELLED",
+        endedAt: now,
+        now,
+        via: "switched",
+        actorId,
+        ipHash,
+        details: { fromPlanId: open.planId, toPlanId: plan.id },
+      });
+      return { action: "switched", membershipId: open.id };
   }
-
-  if (open.source === "MANUAL" && open.plan.billing === "RECURRING") {
-    if (open.planId === plan.id) throw new MembershipError("SAME_PLAN");
-    if (plan.billing !== "RECURRING") throw openBaseConflict({ reason: "SWITCH_TARGET_NOT_RECURRING" });
-    if (!confirmSwitch) throw openBaseConflict(await switchConflict(tx, open, now));
-    await endMembership(tx, open, {
-      status: "CANCELLED",
-      endedAt: now,
-      now,
-      via: "switched",
-      actorId,
-      ipHash,
-      details: { fromPlanId: open.planId, toPlanId: plan.id },
-    });
-    return { action: "switched", membershipId: open.id };
-  }
-
-  throw openBaseConflict({ reason: open.source === "STRIPE" ? "STRIPE_BASE" : "ONE_TIME_BASE" });
 }

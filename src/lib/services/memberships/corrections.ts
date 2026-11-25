@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import type { Payment } from "@/generated/prisma/client";
+import type { Payment, Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/services/audit";
 import { MembershipError } from "./errors";
@@ -93,11 +93,37 @@ async function lockCorrection(
   return { membership, payment: { ...payment, membershipId: payment.membershipId, periodStart: payment.periodStart } };
 }
 
+/** Orders a membership's valid payments newest period first; the first is the latest valid payment. */
+export const LATEST_VALID_PAYMENT_ORDER = [
+  { periodStart: "desc" },
+  { createdAt: "desc" },
+  { id: "desc" },
+] as const satisfies Prisma.PaymentOrderByWithRelationInput[];
+
+export type CorrectionOptions = { canVoid: boolean; canRefund: boolean; canRefundFull: boolean };
+
+/**
+ * The corrections `voidPayment` and `refundPayment` accept for the payment: only a manual
+ * SUCCEEDED payment with nothing refunded; void and full refund only when it is the membership's
+ * latest valid payment (`latest`).
+ */
+export function correctionOptions(
+  payment: Pick<Payment, "method" | "membershipId" | "status" | "amountRefundedCents">,
+  latest: boolean,
+): CorrectionOptions {
+  const correctable =
+    payment.method !== "STRIPE" &&
+    payment.membershipId !== null &&
+    payment.status === "SUCCEEDED" &&
+    payment.amountRefundedCents === 0;
+  return { canVoid: correctable && latest, canRefund: correctable, canRefundFull: correctable && latest };
+}
+
 /** Void and full refund apply only to the membership's valid payment with the newest period start. */
 async function assertLatestValidPayment(tx: Tx, payment: ManualPayment): Promise<void> {
   const latest = await tx.payment.findFirst({
     where: { membershipId: payment.membershipId, status: { in: [...VALID_PAYMENT_STATUSES] } },
-    orderBy: [{ periodStart: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+    orderBy: [...LATEST_VALID_PAYMENT_ORDER],
     select: { id: true },
   });
   if (latest?.id !== payment.id) throw new MembershipError("NOT_LATEST_PAYMENT");

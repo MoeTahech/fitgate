@@ -1,5 +1,15 @@
-import type { Membership, MembershipFreeze, MembershipStatus, OpeningHours, Plan } from "@/generated/prisma/client";
+import type {
+  FreezeStatus,
+  MemberRole,
+  Membership,
+  MembershipFreeze,
+  MembershipSource,
+  MembershipStatus,
+  OpeningHours,
+  Plan,
+} from "@/generated/prisma/client";
 import { addDaysZoned, addMonthsZoned, startOfZonedDay, zonedParts, zonedToInstant, type LocalDate } from "@/lib/time";
+import type { OpenBaseConflictReason } from "./errors";
 
 const DAY_MS = 86_400_000;
 export const PAST_DUE_GRACE_MS = 3 * DAY_MS;
@@ -117,6 +127,63 @@ export function remainingUsableMs(m: MembershipState, freezes: readonly FreezeWi
     }
   }
   return to - from - frozenMs;
+}
+
+/** `remainingUsableMs` rounded up to whole days: the days a switch gives up (decision 13). */
+export function remainingUsableDays(m: MembershipState, freezes: readonly FreezeWindow[], now: Date): number {
+  return Math.ceil(remainingUsableMs(m, freezes, now) / DAY_MS);
+}
+
+/**
+ * The freeze status to display. The stored status is settled lazily by later writes: a request
+ * whose start passed undecided has lapsed (`CANCELLED`), and an approved freeze that is over is
+ * `COMPLETED`.
+ */
+export function freezeDisplayStatus(f: FreezeWindow, now: Date): FreezeStatus {
+  if (f.status === "REQUESTED" && f.startsAt.getTime() <= now.getTime()) return "CANCELLED";
+  if (f.status === "APPROVED" && f.endsAt.getTime() <= now.getTime()) return "COMPLETED";
+  return f.status;
+}
+
+/** One-time plans that end at the closing time of their start day (Day Pass, Gym Trial). */
+export function isCalendarDayPlan(plan: Pick<Plan, "billing" | "durationMode">): boolean {
+  return plan.billing === "ONE_TIME" && plan.durationMode === "CALENDAR_DAYS";
+}
+
+/** The member's open base seat and its membership, as decision 13 needs them. */
+export type OpenBase = {
+  seatRole: MemberRole;
+  source: MembershipSource;
+  planId: string;
+  plan: Pick<Plan, "billing" | "durationMode">;
+};
+
+/**
+ * What recording `plan` does to the member's open base (decision 13):
+ * - `none`: not a base plan, or no open base;
+ * - `supersede`: a trial or Day Pass the member owns ends now, for a recurring plan;
+ * - `switch`: a manual recurring membership the member owns ends now, only with confirmation;
+ * - `same_plan`: use Extend instead;
+ * - `conflict`: anything else, with the `HAS_ACTIVE_BASE` reason.
+ */
+export type OpenBaseReplacement =
+  | { action: "none" | "supersede" | "switch" | "same_plan" }
+  | { action: "conflict"; reason: Exclude<OpenBaseConflictReason, "SWITCH_NEEDS_CONFIRMATION"> };
+
+export function openBaseReplacement(open: OpenBase | null, plan: Pick<Plan, "id" | "type" | "billing">): OpenBaseReplacement {
+  if (plan.type !== "BASE" || open === null) return { action: "none" };
+  if (open.seatRole !== "OWNER") return { action: "conflict", reason: "PARTNER_SEAT" };
+
+  if (open.source === "TRIAL" || isCalendarDayPlan(open.plan)) {
+    return plan.billing === "RECURRING" ? { action: "supersede" } : { action: "conflict", reason: "DAY_PASS_OR_TRIAL" };
+  }
+
+  if (open.source === "MANUAL" && open.plan.billing === "RECURRING") {
+    if (open.planId === plan.id) return { action: "same_plan" };
+    return plan.billing === "RECURRING" ? { action: "switch" } : { action: "conflict", reason: "SWITCH_TARGET_NOT_RECURRING" };
+  }
+
+  return { action: "conflict", reason: open.source === "STRIPE" ? "STRIPE_BASE" : "ONE_TIME_BASE" };
 }
 
 /** The instant the gym closes on a local day, or null when it has no opening hours that day. */

@@ -68,6 +68,10 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   `createOwnedMembership`); `expectMembershipError` in `tests/support/membership-errors.ts`.
 - Time-dependent tests fake only `Date`: `vi.useFakeTimers({ toFake: ["Date"] })` +
   `vi.setSystemTime(...)`, restored with `vi.useRealTimers()` in `afterEach`.
+- Code that calls `requireUser`/`requireRole` is tested by mocking `@/lib/auth/session` with the
+  real guards over a hoisted user: `vi.mock("@/lib/auth/session", async () => (await
+  import("@/lib/auth/guards")).createGuards(async () => session.user))`, with `session` from
+  `vi.hoisted` and reset in `afterEach` (see `memberships/queries.test.ts`).
 
 ## Architecture
 - `next.config.ts` enables `cacheComponents` and `partialPrefetching`; consult
@@ -79,13 +83,16 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
 - Audit rows: `audit(tx, entry)` from `src/lib/services/audit.ts`, always with the
   transaction of the change.
 - Memberships: `src/lib/services/memberships/`. `rules.ts` pure rules (usability, overdue,
-  periods); `internal.ts` shared transaction helpers for the membership services only
+  periods, `freezeDisplayStatus`, `remainingUsableDays`, and `openBaseReplacement`: decision 13's
+  supersede/switch/conflict outcome, shared by `resolveOpenBase` and the record-payment read
+  model); `internal.ts` shared transaction helpers for the membership services only
   (`lockUsers`/`lockMembership`, `requireActiveAdmin`, `authorizeOwnerOrAdmin`, `getGymClock`,
   overdue cleanup and `endIfOverdue`, `endMembership`, `resolveOpenBase`, `consumeRateLimit`); `errors.ts` `MembershipError(code, details?)` and
   `toMembershipError`, which maps backstop unique-index violations to domain codes;
   `schemas.ts` shared Zod schemas (`noteSchema`/`reasonSchema`: trimmed, max 500, no email
   or URL; `referenceSchema`, `manualPaymentMethodSchema`); `manual.ts` manual create/extend;
-  `corrections.ts` void and manual refund of manual payments; `freezes.ts` request, approve,
+  `corrections.ts` void and manual refund of manual payments (`correctionOptions` reports which
+  corrections a payment accepts); `freezes.ts` request, approve,
   reject, cancel (approval shifts the period end and valid payment periods; cancel undoes it);
   `trials.ts` `startTrial` (rate limited per user and IP before its transaction) and the
   read-only `trialEligibility`, which share one check and report the same codes; `invites.ts`
@@ -93,6 +100,11 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   `sendMembershipInvite` after commit), accept, remove partner, leave, and the public
   `findMembershipInviteByToken` for `/invite/membership/[token]`. Accept failures that record a
   change (invite found expired, overdue membership ended) commit it, then throw.
+  `queries.ts` read models for pages: member (`getMyMemberships`, `getMyTrialEligibility`,
+  `listJoinablePlans`) and admin (`listMembers`, `getMemberDetail`, `listMemberships`,
+  `listPendingFreezes`, `getMembershipDetail`, `listPayments`). Each calls `requireUser`/
+  `requireRole("ADMIN")` first, works out display status from stored dates via the rules (SQL
+  status filters mirror `effectiveStatus`), never writes, and returns the gym `timeZone`.
 - Database: schema in `prisma/schema.prisma`, config in `prisma.config.ts`
   (loads `.env` itself; migrations use `DIRECT_URL`, falling back to `DATABASE_URL`).
   Import the client only via `db` from `src/lib/db.ts`. Generated client lives in
