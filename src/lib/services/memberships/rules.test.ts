@@ -304,13 +304,27 @@ describe("remainingUsableDays", () => {
   const now = at("2027-01-20T08:00:00Z");
 
   it("rounds partial days up and excludes approved freezes", () => {
-    expect(remainingUsableDays(membership(), [], now)).toBe(12);
-    expect(remainingUsableDays(membership(), [], shift(now, HOUR))).toBe(12);
-    expect(remainingUsableDays(membership(), [freeze("2027-01-24T08:00:00Z", "2027-01-29T08:00:00Z")], now)).toBe(7);
+    expect(remainingUsableDays(membership(), [], now, BEIRUT)).toBe(12);
+    expect(remainingUsableDays(membership(), [], shift(now, HOUR), BEIRUT)).toBe(12);
+    expect(remainingUsableDays(membership(), [freeze("2027-01-24T08:00:00Z", "2027-01-29T08:00:00Z")], now, BEIRUT)).toBe(7);
+  });
+
+  it("counts local days when the clocks fall back: 10 days and an extra hour are 10 days", () => {
+    // 25 Oct 10:00 (UTC+3) to 4 Nov 10:00 (UTC+2); the period end is 10 days and 1 hour away.
+    const autumnNow = at("2027-10-25T07:00:00Z");
+    const m = membership({ currentPeriodStart: at("2027-10-04T07:00:00Z"), currentPeriodEnd: at("2027-11-04T08:00:00Z") });
+    expect(remainingUsableDays(m, [], autumnNow, BEIRUT)).toBe(10);
+    expect(remainingUsableDays(m, [freeze("2027-11-01T08:00:00Z", "2027-11-03T08:00:00Z")], autumnNow, BEIRUT)).toBe(8);
+  });
+
+  it("counts local days when the clocks jump forward: 10 days less an hour are 10 days", () => {
+    // 25 Mar 10:00 (UTC+2) to 4 Apr 10:00 (UTC+3).
+    const m = membership({ currentPeriodStart: at("2027-03-04T08:00:00Z"), currentPeriodEnd: at("2027-04-04T07:00:00Z") });
+    expect(remainingUsableDays(m, [], at("2027-03-25T08:00:00Z"), BEIRUT)).toBe(10);
   });
 
   it("is zero once the period is over", () => {
-    expect(remainingUsableDays(membership(), [], END)).toBe(0);
+    expect(remainingUsableDays(membership(), [], END, BEIRUT)).toBe(0);
   });
 });
 

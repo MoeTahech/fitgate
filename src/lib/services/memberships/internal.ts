@@ -282,6 +282,8 @@ export type ResolveOpenBaseInput = {
   plan: Pick<Plan, "id" | "type" | "billing">;
   confirmSwitch: boolean;
   now: Date;
+  /** The gym's time zone, for the days a switch gives up. */
+  timeZone: string;
   actorId: string;
   ipHash: string | null;
 };
@@ -294,14 +296,14 @@ function openBaseConflict(details: OpenBaseConflictDetails): MembershipError {
   return new MembershipError("HAS_ACTIVE_BASE", details);
 }
 
-async function switchConflict(tx: Tx, membership: LockedMembership, now: Date): Promise<OpenBaseConflictDetails> {
+async function switchConflict(tx: Tx, membership: LockedMembership, now: Date, timeZone: string): Promise<OpenBaseConflictDetails> {
   const freezes = await approvedFreezes(tx, membership.id);
   const partners = await tx.membershipMember.count({
     where: { membershipId: membership.id, role: "PARTNER", endedAt: null },
   });
   return {
     reason: "SWITCH_NEEDS_CONFIRMATION",
-    remainingDays: remainingUsableDays(membership, freezes, now),
+    remainingDays: remainingUsableDays(membership, freezes, now, timeZone),
     hasPartner: partners > 0,
   };
 }
@@ -315,7 +317,7 @@ async function switchConflict(tx: Tx, membership: LockedMembership, now: Date): 
  * The caller holds the member's user lock and has run overdue cleanup for the member.
  */
 export async function resolveOpenBase(tx: Tx, input: ResolveOpenBaseInput): Promise<OpenBaseResolution> {
-  const { memberId, plan, confirmSwitch, now, actorId, ipHash } = input;
+  const { memberId, plan, confirmSwitch, now, timeZone, actorId, ipHash } = input;
   if (plan.type !== "BASE") return { action: "none" };
 
   const found = await openBaseSeat(tx, memberId);
@@ -343,7 +345,7 @@ export async function resolveOpenBase(tx: Tx, input: ResolveOpenBaseInput): Prom
       await endMembership(tx, open, { status: "CANCELLED", endedAt: now, now, via: "superseded", actorId, ipHash });
       return { action: "superseded", membershipId: open.id };
     case "switch":
-      if (!confirmSwitch) throw openBaseConflict(await switchConflict(tx, open, now));
+      if (!confirmSwitch) throw openBaseConflict(await switchConflict(tx, open, now, timeZone));
       await endMembership(tx, open, {
         status: "CANCELLED",
         endedAt: now,

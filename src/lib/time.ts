@@ -176,7 +176,16 @@ export function localMinutes(instant: Date, timeZone: string): number {
   return parts.hour * 60 + parts.minute;
 }
 
-export type LocalFormatStyle = Pick<Intl.DateTimeFormatOptions, "dateStyle" | "timeStyle">;
+/**
+ * The time between two instants as the zone's wall clock shows it: a DST shift in between adds
+ * or removes nothing (10:00 to 10:00 ten days later is always 10 days). Negative when `to` is
+ * before `from`.
+ */
+export function localElapsedMs(from: Date, to: Date, timeZone: string): number {
+  return wallClockMs(zonedParts(to, timeZone)) - wallClockMs(zonedParts(from, timeZone));
+}
+
+export type LocalFormatStyle =Pick<Intl.DateTimeFormatOptions, "dateStyle" | "timeStyle">;
 
 /** Display formatting (en-GB) in the given time zone. Defaults to a medium date and short time. */
 export function formatLocal(

@@ -4,6 +4,7 @@ import {
   addMonthsZoned,
   formatLocal,
   formatLocalTime,
+  localElapsedMs,
   localMinutes,
   startOfZonedDay,
   zonedParts,
@@ -241,6 +242,21 @@ describe("localMinutes", () => {
     expect(localMinutes(at("2027-03-27T22:00:00Z"), BEIRUT)).toBe(60);
     expect(localMinutes(at("2027-10-30T20:30:00Z"), BEIRUT)).toBe(1410);
     expect(localMinutes(at("2027-10-30T21:30:00Z"), BEIRUT)).toBe(1410);
+  });
+});
+
+describe("localElapsedMs", () => {
+  const DAY = 24 * HOUR;
+
+  it("measures wall-clock time, ignoring DST shifts in between", () => {
+    expect(localElapsedMs(at("2027-10-25T07:00:00Z"), at("2027-11-04T08:00:00Z"), BEIRUT)).toBe(10 * DAY);
+    expect(localElapsedMs(at("2027-03-25T08:00:00Z"), at("2027-04-04T07:00:00Z"), BEIRUT)).toBe(10 * DAY);
+    expect(localElapsedMs(at("2027-11-06T15:00:00Z"), at("2027-11-08T15:00:00Z"), NEW_YORK)).toBe(2 * DAY - HOUR);
+  });
+
+  it("equals the real duration without a DST shift, and is negative backwards", () => {
+    expect(localElapsedMs(at("2027-01-15T07:30:00Z"), at("2027-01-16T09:00:00Z"), BEIRUT)).toBe(DAY + 90 * 60_000);
+    expect(localElapsedMs(at("2027-01-16T09:00:00Z"), at("2027-01-15T07:30:00Z"), BEIRUT)).toBe(-(DAY + 90 * 60_000));
   });
 });
 

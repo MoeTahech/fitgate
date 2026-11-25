@@ -144,10 +144,19 @@ export async function createManualMembership(input: CreateManualMembershipInput)
 
       await endOverdueMemberships(tx, userId, now, "manual_create");
 
-      const period = computePeriod(plan, now, await getGymClock(tx));
+      const clock = await getGymClock(tx);
+      const period = computePeriod(plan, now, clock);
       if (!period) throw new MembershipError("CLOSED_FOR_TODAY");
 
-      const replaced = await resolveOpenBase(tx, { memberId: userId, plan, confirmSwitch, now, actorId, ipHash });
+      const replaced = await resolveOpenBase(tx, {
+        memberId: userId,
+        plan,
+        confirmSwitch,
+        now,
+        timeZone: clock.timeZone,
+        actorId,
+        ipHash,
+      });
 
       const membership = await tx.membership.create({
         data: {

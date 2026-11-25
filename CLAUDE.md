@@ -126,7 +126,7 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
 - Crypto: `generateToken`, `sha256`, `keyedHash(purpose, value)` from `src/lib/crypto.ts`.
 - Time zones: all zone math and local-time display go through `src/lib/time.ts`
   (`zonedParts`, `zonedToInstant`, `addDaysZoned`, `addMonthsZoned`, `startOfZonedDay`,
-  `localMinutes`, `formatLocal`, `formatLocalTime`). New code does no ad-hoc offset
+  `localMinutes`, `localElapsedMs`, `formatLocal`, `formatLocalTime`). New code does no ad-hoc offset
   arithmetic and builds no own `Intl.DateTimeFormat`. DST gaps resolve forward, overlaps
   to the earlier instant.
 

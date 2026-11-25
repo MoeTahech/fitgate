@@ -8,7 +8,15 @@ import type {
   OpeningHours,
   Plan,
 } from "@/generated/prisma/client";
-import { addDaysZoned, addMonthsZoned, startOfZonedDay, zonedParts, zonedToInstant, type LocalDate } from "@/lib/time";
+import {
+  addDaysZoned,
+  addMonthsZoned,
+  localElapsedMs,
+  startOfZonedDay,
+  zonedParts,
+  zonedToInstant,
+  type LocalDate,
+} from "@/lib/time";
 import type { OpenBaseConflictReason } from "./errors";
 
 const DAY_MS = 86_400_000;
@@ -102,14 +110,14 @@ export function canBookAt(m: MembershipState, freezes: readonly FreezeWindow[], 
   return isUsableAt(m, freezes, classStart);
 }
 
-/** Usable time from `now` on: the access window after `now`, minus the approved freeze windows in it. */
-export function remainingUsableMs(m: MembershipState, freezes: readonly FreezeWindow[], now: Date): number {
-  if (isOverdue(m, now)) return 0;
+/** The access window after `now` with the approved freeze windows taken out, in time order. */
+function remainingUsableIntervals(m: MembershipState, freezes: readonly FreezeWindow[], now: Date): Interval[] {
+  if (isOverdue(m, now)) return [];
   const window = statusWindow(m);
-  if (!window) return 0;
+  if (!window) return [];
   const from = Math.max(window.from, now.getTime());
   const to = window.to;
-  if (from >= to) return 0;
+  if (from >= to) return [];
 
   const frozen = freezes
     .filter(isFreezeInEffect)
@@ -117,21 +125,31 @@ export function remainingUsableMs(m: MembershipState, freezes: readonly FreezeWi
     .filter((f) => f.from < f.to)
     .sort((a, b) => a.from - b.from);
 
-  let frozenMs = 0;
-  let coveredTo = from;
+  const usable: Interval[] = [];
+  let cursor = from;
   for (const f of frozen) {
-    const start = Math.max(f.from, coveredTo);
-    if (f.to > start) {
-      frozenMs += f.to - start;
-      coveredTo = f.to;
-    }
+    if (f.from > cursor) usable.push({ from: cursor, to: f.from });
+    cursor = Math.max(cursor, f.to);
   }
-  return to - from - frozenMs;
+  if (cursor < to) usable.push({ from: cursor, to });
+  return usable;
 }
 
-/** `remainingUsableMs` rounded up to whole days: the days a switch gives up (decision 13). */
-export function remainingUsableDays(m: MembershipState, freezes: readonly FreezeWindow[], now: Date): number {
-  return Math.ceil(remainingUsableMs(m, freezes, now) / DAY_MS);
+/** Usable time from `now` on: the access window after `now`, minus the approved freeze windows in it. */
+export function remainingUsableMs(m: MembershipState, freezes: readonly FreezeWindow[], now: Date): number {
+  return remainingUsableIntervals(m, freezes, now).reduce((sum, i) => sum + (i.to - i.from), 0);
+}
+
+/**
+ * The usable time from `now` on in local days, rounded up: the days a switch gives up
+ * (decision 13). Measured on the gym's wall clock, so a DST change doesn't add or remove a day.
+ */
+export function remainingUsableDays(m: MembershipState, freezes: readonly FreezeWindow[], now: Date, timeZone: string): number {
+  const localMs = remainingUsableIntervals(m, freezes, now).reduce(
+    (sum, i) => sum + localElapsedMs(new Date(i.from), new Date(i.to), timeZone),
+    0,
+  );
+  return Math.ceil(localMs / DAY_MS);
 }
 
 /**

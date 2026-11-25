@@ -315,6 +315,7 @@ describe("resolveOpenBase", () => {
         plan: input.plan,
         confirmSwitch: input.confirmSwitch ?? false,
         now: input.now ?? new Date(),
+        timeZone: "Asia/Beirut",
         actorId: input.actorId,
         ipHash: "ip",
       }),

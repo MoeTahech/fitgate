@@ -644,7 +644,7 @@ export async function getMemberDetail(userId: string): Promise<MemberDetail | nu
         membershipId: baseSeat.membership.id,
         planName: baseSeat.membership.plan.name,
         seatRole: baseSeat.role,
-        remainingDays: remainingUsableDays(baseSeat.membership, baseSeat.membership.freezes, now),
+        remainingDays: remainingUsableDays(baseSeat.membership, baseSeat.membership.freezes, now, clock.timeZone),
         hasPartner: baseSeat.role === "OWNER" && baseSeat.membership._count.members > 0,
       }
     : null;
