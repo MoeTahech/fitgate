@@ -16,7 +16,7 @@ export function RoleForm({ userId, userName, role }: { userId: string; userName:
   }, [state.status]);
 
   return (
-    <form action={action} className="flex flex-col items-end gap-1">
+    <form action={action} className="flex flex-col gap-1">
       <input type="hidden" name="userId" value={userId} />
       <div className="flex items-center gap-2">
         <NativeSelect name="role" defaultValue={role} size="sm" aria-label={`Role for ${userName}`}>

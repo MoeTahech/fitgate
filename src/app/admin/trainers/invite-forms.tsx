@@ -48,7 +48,7 @@ export function InviteActions({
   const [resendState, resend, resending] = useActionState(resendInviteAction, IDLE);
   const message = resendState.message ? resendState : revokeState;
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex flex-col gap-1">
       <div className="flex gap-2">
         {canResend ? (
           <form action={resend}>

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { DataTable } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader, SectionHeader } from "@/components/page-header";
 import { InviteStatusBadge } from "@/components/status-badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePageUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { listTrainerInvites } from "@/lib/services/trainer-invites";
@@ -35,48 +35,56 @@ async function TrainerInvites() {
         {invites.length === 0 ? (
           <EmptyState title="No invites yet" description="Invites you send appear here." />
         ) : (
-          <Card className="py-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="px-4">Email</TableHead>
-                  <TableHead className="px-4">Status</TableHead>
-                  <TableHead className="px-4">Invited</TableHead>
-                  <TableHead className="px-4">Expires</TableHead>
-                  <TableHead className="px-4 text-right">
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {invites.map((invite) => (
-                  <TableRow key={invite.id}>
-                    <TableCell className="px-4 py-3 font-medium">{invite.email}</TableCell>
-                    <TableCell className="px-4 py-3">
-                      <InviteStatusBadge status={invite.status} />
-                    </TableCell>
-                    <TableCell className="px-4 py-3">
-                      <p>{formatLocal(invite.createdAt, timeZone)}</p>
-                      <p className="text-muted-foreground">by {invite.invitedByName}</p>
-                    </TableCell>
-                    <TableCell className="px-4 py-3 text-muted-foreground">
-                      {invite.status === "PENDING" ? formatLocal(invite.expiresAt, timeZone) : "—"}
-                    </TableCell>
-                    <TableCell className="px-4 py-3">
-                      {invite.status === "PENDING" || invite.status === "EXPIRED" ? (
-                        <InviteActions
-                          inviteId={invite.id}
-                          email={invite.email}
-                          canRevoke={invite.status === "PENDING"}
-                          canResend
-                        />
-                      ) : null}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Card>
+          <DataTable
+            label="Trainer invites"
+            rows={invites}
+            rowKey={(invite) => invite.id}
+            columns={[
+              {
+                id: "email",
+                header: "Email",
+                grow: true,
+                stackedLabel: false,
+                title: (invite) => invite.email,
+                cell: (invite) => <p className="font-medium">{invite.email}</p>,
+              },
+              { id: "status", header: "Status", cell: (invite) => <InviteStatusBadge status={invite.status} /> },
+              {
+                id: "invited",
+                header: "Invited",
+                cell: (invite) => (
+                  <>
+                    <p>{formatLocal(invite.createdAt, timeZone)}</p>
+                    <p className="text-muted-foreground">by {invite.invitedByName}</p>
+                  </>
+                ),
+              },
+              {
+                id: "expires",
+                header: "Expires",
+                cell: (invite) => (
+                  <p className="text-muted-foreground">
+                    {invite.status === "PENDING" ? formatLocal(invite.expiresAt, timeZone) : "—"}
+                  </p>
+                ),
+              },
+              {
+                id: "actions",
+                header: "Actions",
+                hideHeader: true,
+                align: "end",
+                cell: (invite) =>
+                  invite.status === "PENDING" || invite.status === "EXPIRED" ? (
+                    <InviteActions
+                      inviteId={invite.id}
+                      email={invite.email}
+                      canRevoke={invite.status === "PENDING"}
+                      canResend
+                    />
+                  ) : null,
+              },
+            ]}
+          />
         )}
       </section>
     </div>

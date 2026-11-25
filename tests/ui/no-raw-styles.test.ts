@@ -15,6 +15,7 @@ const RULES: { name: string; pattern: RegExp }[] = [
   { name: "palette color", pattern: new RegExp(`(?<![\\w-])(?:${UTILITY})-(?:${PALETTE})-\\d{2,3}\\b`) },
   { name: "black/white color", pattern: new RegExp(`(?<![\\w-])(?:${UTILITY})-(?:black|white)\\b`) },
   { name: "arbitrary color", pattern: /(?<![\w-])(?:bg|text|border|ring|outline|fill|stroke)-\[(?:#|rgb|hsl|oklch)/ },
+  { name: "Table primitive (use DataTable)", pattern: /from\s+["']@\/components\/ui\/table["']/ },
 ];
 
 function violations(source: string): string[] {
@@ -49,6 +50,7 @@ describe("violations", () => {
     'className="dark:bg-black"',
     'className="border-emerald-200"',
     'className="text-[#ff0000]"',
+    'import { Table, TableRow } from "@/components/ui/table";',
   ])("flags %s", (line) => {
     expect(violations(line)).not.toEqual([]);
   });

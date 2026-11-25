@@ -20,7 +20,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
+    include: ["src/**/*.test.{ts,tsx}", "tests/**/*.test.{ts,tsx}"],
     globalSetup: ["tests/global-setup.ts"],
     setupFiles: ["tests/setup.ts"],
     // Test files share one database and truncate it before running.

@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { DataTable } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { Pagination } from "@/components/pagination";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePageUser } from "@/lib/auth/session";
 import { listUsers } from "@/lib/services/users";
 import { RoleForm } from "./role-form";
@@ -52,29 +51,32 @@ async function UsersTable({ searchParams }: { searchParams: PageProps<"/admin/us
       {users.length === 0 ? (
         <EmptyState title="No users found" description={query ? "Try a different name or email." : undefined} />
       ) : (
-        <Card className="py-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="px-4">User</TableHead>
-                <TableHead className="px-4 text-right">Role</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell className="max-w-64 px-4 py-3">
-                    <p className="truncate font-medium">{user.name}</p>
-                    <p className="truncate text-muted-foreground">{user.email}</p>
-                  </TableCell>
-                  <TableCell className="px-4 py-3">
-                    <RoleForm userId={user.id} userName={user.name} role={user.role} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
+        <DataTable
+          label="Users"
+          rows={users}
+          rowKey={(user) => user.id}
+          columns={[
+            {
+              id: "user",
+              header: "User",
+              grow: true,
+              stackedLabel: false,
+              title: (user) => `${user.name}\n${user.email}`,
+              cell: (user) => (
+                <>
+                  <p className="font-medium">{user.name}</p>
+                  <p className="text-muted-foreground">{user.email}</p>
+                </>
+              ),
+            },
+            {
+              id: "role",
+              header: "Role",
+              align: "end",
+              cell: (user) => <RoleForm userId={user.id} userName={user.name} role={user.role} />,
+            },
+          ]}
+        />
       )}
 
       <Pagination page={page} pageCount={pageCount} hrefFor={pageHref} />

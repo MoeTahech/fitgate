@@ -62,8 +62,12 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   import server code run with `tsx --conditions=react-server --env-file-if-exists=.env`.
 
 ## Testing
-- Vitest, config in `vitest.config.mts`. Tests are colocated as `src/**/*.test.ts`;
+- Vitest, config in `vitest.config.mts`. Tests are colocated as `src/**/*.test.ts(x)`;
   shared setup and helpers live in `tests/`.
+- Component tests (`.test.tsx`, Node environment, no DOM) render with `renderMarkup` from
+  `tests/support/markup.ts` (`renderToStaticMarkup` + a small parser) and assert structure and
+  attributes with `find`/`findAll`/`byTag`/`byAttr`/`textOf`/`classesOf`. Behaviour that needs
+  a browser (focus, events) is checked by hand.
 - Global setup runs `prisma migrate deploy` against `TEST_DATABASE_URL` (creating
   the database if missing); workers get it as `DATABASE_URL`. Test files run
   sequentially and all tables are truncated before each file.
@@ -145,8 +149,10 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   `PageHeader`/`SectionHeader`, `CenteredPage`/`CenteredCard` (auth and invite pages),
   `FormField`/`InputField`/`SelectField`, `SubmitButton`, `FormAlert` (form-level messages),
   `InlineStatus` (result line next to a row action), `TextLink`, `Pagination`, `EmptyState`, `StatusBadge` (+ `MembershipStatusBadge`, `InviteStatusBadge`; each status enum
-  gets a typed tone/label map there), `ConfirmDialog` (destructive or irreversible actions);
-  plus primitives `Button`/`buttonVariants` (links styled as buttons), `Card`, `Table`,
+  gets a typed tone/label map there), `ConfirmDialog` (destructive or irreversible actions),
+  `DataTable` (record lists: column config; a table when its container is at least `@2xl`
+  wide, a stack of cards below; a `grow` column truncates in table mode with `title`, wraps in
+  card mode); plus primitives `Button`/`buttonVariants` (links styled as buttons), `Card`,
   `Skeleton` (Suspense fallbacks).
 - Layout (`src/components/layout/`): `nav.ts` holds the nav config (`MAIN_NAV` with role
   filters, `ADMIN_NAV`; add new sections there) and link styles. `SiteHeader` (near-black bar,
@@ -160,9 +166,10 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   Tailwind palette classes (`zinc-`, `red-`, …), no `dark:` utilities, no one-off styling of
   buttons, inputs, cards, badges, alerts or tables. Layout utilities (flex, grid, gap, margin,
   width, responsive visibility) are fine. If a pattern is missing, add it to `src/components/`
-  first. Displayed dates go through `formatLocal`/`formatLocalTime`.
-  `tests/ui/no-raw-styles.test.ts` fails on palette colors, black/white, arbitrary colors or
-  `dark:` in `src/app` and `src/components` (`src/components/ui/` excluded).
+  first. Displayed dates go through `formatLocal`/`formatLocalTime`. Record lists use
+  `DataTable`, never the `Table` primitive directly in pages.
+  `tests/ui/no-raw-styles.test.ts` fails on palette colors, black/white, arbitrary colors,
+  `dark:` or a `ui/table` import in `src/app` and `src/components` (`src/components/ui/` excluded).
 - Validate all external input with Zod.
 - Authorization is enforced on the server, never only in the UI.
 - Store times in UTC; convert to the gym's time zone (`GymSettings.timeZone`) only for
