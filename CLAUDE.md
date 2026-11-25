@@ -147,9 +147,12 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   never contain emails, links, tokens, or other personal data; IPs only as
   `keyedHash("ip", ...)` (`getRequestIpHash()`).
 - Authorization: every server action, route handler, and data-access function
-  calls `requireUser()`/`requireRole(...)` (uncached, reads the DB session).
-  Pages use `requirePageUser(returnTo, ...roles)` (sign-in redirect, 404 on a
-  missing role). `getCurrentUser()` is browser-cached and for display only.
+  that requires a signed-in user calls `requireUser()`/`requireRole(...)`
+  (uncached, reads the DB session). `getSessionUser()` (the same uncached read,
+  returning null when signed out) is allowed only where a signed-out visitor gets
+  a normal response, e.g. the invite accept pages and actions showing "sign in to
+  accept". Pages use `requirePageUser(returnTo, ...roles)` (sign-in redirect, 404
+  on a missing role). `getCurrentUser()` is browser-cached and for display only.
   Services that change privileges also verify the actor inside their transaction.
 - After the current user's auth state changes on the client (sign-in, sign-out,
   own role change), leave with `hardNavigate()` from `src/lib/auth/navigation.ts`,
