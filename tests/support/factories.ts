@@ -219,6 +219,21 @@ export function createGymTrialPlan(overrides: Partial<Prisma.PlanUncheckedCreate
   return createPlan({ ...oneTimePlan, durationDays: 1, durationMode: "CALENDAR_DAYS", priceCents: 0, trialKind: "GYM", ...overrides });
 }
 
+export function createClassTrialPlan(overrides: Partial<Prisma.PlanUncheckedCreateInput> = {}) {
+  return createPlan({
+    ...oneTimePlan,
+    type: "ADDON",
+    openAccess: false,
+    classAccess: "CREDITS",
+    credits: 1,
+    durationDays: 7,
+    durationMode: "ROLLING",
+    priceCents: 0,
+    trialKind: "CLASS",
+    ...overrides,
+  });
+}
+
 export function createClassPackPlan(overrides: Partial<Prisma.PlanUncheckedCreateInput> = {}) {
   return createPlan({
     ...oneTimePlan,

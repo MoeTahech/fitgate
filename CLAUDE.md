@@ -86,7 +86,9 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   `schemas.ts` shared Zod schemas (`noteSchema`/`reasonSchema`: trimmed, max 500, no email
   or URL; `referenceSchema`, `manualPaymentMethodSchema`); `manual.ts` manual create/extend;
   `corrections.ts` void and manual refund of manual payments; `freezes.ts` request, approve,
-  reject, cancel (approval shifts the period end and valid payment periods; cancel undoes it).
+  reject, cancel (approval shifts the period end and valid payment periods; cancel undoes it);
+  `trials.ts` `startTrial` (rate limited per user and IP before its transaction) and the
+  read-only `trialEligibility`, which share one check and report the same codes.
 - Database: schema in `prisma/schema.prisma`, config in `prisma.config.ts`
   (loads `.env` itself; migrations use `DIRECT_URL`, falling back to `DATABASE_URL`).
   Import the client only via `db` from `src/lib/db.ts`. Generated client lives in
