@@ -133,7 +133,8 @@ async function assertLatestValidPayment(tx: Tx, payment: ManualPayment): Promise
  * Takes the payment's period away from a running membership: rolls `currentPeriodEnd` back to the
  * payment's period start and cancels open freezes that would start at or after it, or cancels the
  * membership when the payment activated it. A rollback into the past ends the membership as
- * overdue cleanup would. An ended membership is left as is.
+ * overdue cleanup would, which settles freezes that have already started (approved ones complete).
+ * An ended membership is left as is.
  */
 async function withdrawPaidPeriod(
   tx: Tx,
@@ -170,7 +171,7 @@ async function withdrawPaidPeriod(
   });
 
   const freezes = await tx.membershipFreeze.findMany({
-    where: { membershipId: membership.id, status: { in: ["REQUESTED", "APPROVED"] }, startsAt: { gte: newEnd } },
+    where: { membershipId: membership.id, status: { in: ["REQUESTED", "APPROVED"] }, startsAt: { gte: newEnd, gt: now } },
     select: { id: true },
     orderBy: { id: "asc" },
   });

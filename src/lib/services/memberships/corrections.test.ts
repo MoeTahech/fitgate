@@ -318,6 +318,21 @@ describe("voidPayment", () => {
     ]);
   });
 
+  it("completes a running freeze when the rollback expires the membership, instead of cancelling it", async () => {
+    // Freeze 10-16 Jan falls in the second paid month; on 12 Jan it is running when that payment is voided.
+    const { admin, member, membershipId, second } = await extendedMembership();
+    const freeze = await requestFreeze({ userId: member.id, membershipId, firstDay: "2027-01-10", lastDay: "2027-01-16" });
+    await approveFreeze({ actorId: admin.id, freezeId: freeze.freezeId });
+    vi.setSystemTime(new Date("2027-01-12T08:00:00.000Z"));
+
+    const result = await voidIt(admin, second);
+
+    expect(result.effect).toMatchObject({ membership: "rolled_back", newEnd: ONE_MONTH_LATER, expired: true });
+    expect(await getMembership(membershipId)).toMatchObject({ status: "EXPIRED", endedAt: ONE_MONTH_LATER });
+    expect((await db.membershipFreeze.findUniqueOrThrow({ where: { id: freeze.freezeId } })).status).toBe("COMPLETED");
+    expect(await auditRows("membership_freeze.cancelled")).toEqual([]);
+  });
+
   it("changes only the payment on an ended or lapsed membership", async () => {
     const admin = await createUser({ role: "ADMIN" });
     const member = await createUser();
