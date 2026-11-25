@@ -10,7 +10,7 @@ import { requirePageUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { listTrainerInvites } from "@/lib/services/trainer-invites";
 import { formatLocal } from "@/lib/time";
-import { CreateInviteForm, InviteActions } from "./invite-forms";
+import { CreateInviteForm, InviteActions, InviteActionsProvider, InviteResults } from "./invite-forms";
 
 export const metadata: Metadata = { title: "Trainers" };
 
@@ -31,61 +31,64 @@ async function TrainerInvites() {
       </Card>
 
       <section>
-        <SectionHeader title="Invites" />
-        {invites.length === 0 ? (
-          <EmptyState title="No invites yet" description="Invites you send appear here." />
-        ) : (
-          <DataTable
-            label="Trainer invites"
-            rows={invites}
-            rowKey={(invite) => invite.id}
-            columns={[
-              {
-                id: "email",
-                header: "Email",
-                grow: true,
-                stackedLabel: false,
-                title: (invite) => invite.email,
-                cell: (invite) => <p className="font-medium">{invite.email}</p>,
-              },
-              { id: "status", header: "Status", cell: (invite) => <InviteStatusBadge status={invite.status} /> },
-              {
-                id: "invited",
-                header: "Invited",
-                cell: (invite) => (
-                  <>
-                    <p>{formatLocal(invite.createdAt, timeZone)}</p>
-                    <p className="text-muted-foreground">by {invite.invitedByName}</p>
-                  </>
-                ),
-              },
-              {
-                id: "expires",
-                header: "Expires",
-                cell: (invite) => (
-                  <p className="text-muted-foreground">
-                    {invite.status === "PENDING" ? formatLocal(invite.expiresAt, timeZone) : "—"}
-                  </p>
-                ),
-              },
-              {
-                id: "actions",
-                header: "Actions",
-                hideHeader: true,
-                align: "end",
-                cell: (invite) =>
-                  invite.status === "PENDING" || invite.status === "EXPIRED" ? (
-                    <InviteActions
-                      inviteId={invite.id}
-                      email={invite.email}
-                      canRevoke={invite.status === "PENDING"}
-                      canResend
-                    />
-                  ) : null,
-              },
-            ]}
-          />
-        )}
+        <InviteActionsProvider>
+          <SectionHeader title="Invites" />
+          <InviteResults />
+          {invites.length === 0 ? (
+            <EmptyState title="No invites yet" description="Invites you send appear here." />
+          ) : (
+            <DataTable
+              label="Trainer invites"
+              rows={invites}
+              rowKey={(invite) => invite.id}
+              columns={[
+                {
+                  id: "email",
+                  header: "Email",
+                  grow: true,
+                  stackedLabel: false,
+                  title: (invite) => invite.email,
+                  cell: (invite) => <p className="font-medium">{invite.email}</p>,
+                },
+                { id: "status", header: "Status", cell: (invite) => <InviteStatusBadge status={invite.status} /> },
+                {
+                  id: "invited",
+                  header: "Invited",
+                  cell: (invite) => (
+                    <>
+                      <p>{formatLocal(invite.createdAt, timeZone)}</p>
+                      <p className="text-muted-foreground">by {invite.invitedByName}</p>
+                    </>
+                  ),
+                },
+                {
+                  id: "expires",
+                  header: "Expires",
+                  cell: (invite) => (
+                    <p className="text-muted-foreground">
+                      {invite.status === "PENDING" ? formatLocal(invite.expiresAt, timeZone) : "—"}
+                    </p>
+                  ),
+                },
+                {
+                  id: "actions",
+                  header: "Actions",
+                  hideHeader: true,
+                  align: "end",
+                  cell: (invite) =>
+                    invite.status === "PENDING" || invite.status === "EXPIRED" ? (
+                      <InviteActions
+                        inviteId={invite.id}
+                        email={invite.email}
+                        canRevoke={invite.status === "PENDING"}
+                        canResend
+                      />
+                    ) : null,
+                },
+              ]}
+            />
+          )}
+        </InviteActionsProvider>
       </section>
     </div>
   );

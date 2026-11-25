@@ -149,7 +149,8 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   `PageHeader`/`SectionHeader`, `CenteredPage`/`CenteredCard` (auth and invite pages),
   `FormField`/`InputField`/`SelectField`, `SubmitButton`, `FormAlert` (form-level messages),
   `InlineStatus` (result line next to a row action), `TextLink`, `Pagination`, `EmptyState`, `StatusBadge` (+ `MembershipStatusBadge`, `InviteStatusBadge`; each status enum
-  gets a typed tone/label map there), `ConfirmDialog` (destructive or irreversible actions),
+  gets a typed tone/label map there), `ConfirmDialog` (destructive or irreversible actions; pass `finalFocus` when the action can
+  remove its own trigger, and show row-action results above the list, not in the row),
   `DataTable` (record lists: column config; a table when its container is at least `@2xl`
   wide, a stack of cards below; a `grow` column truncates in table mode with `title`, wraps in
   card mode); plus primitives `Button`/`buttonVariants` (links styled as buttons), `Card`,

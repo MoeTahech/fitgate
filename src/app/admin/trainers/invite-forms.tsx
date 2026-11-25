@@ -1,10 +1,18 @@
 "use client";
 
-import { useActionState } from "react";
+import {
+  createContext,
+  startTransition,
+  use,
+  useActionState,
+  useOptimistic,
+  useRef,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { FormAlert } from "@/components/form-alert";
 import { FormField } from "@/components/form-field";
-import { InlineStatus } from "@/components/inline-status";
 import { SubmitButton } from "@/components/submit-button";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,6 +21,7 @@ import {
   revokeInviteAction,
   type InviteFormState,
 } from "./actions";
+import { describeInviteResult, type InviteResult, type InviteTarget } from "./invite-results";
 
 const IDLE: InviteFormState = { status: "idle" };
 
@@ -33,6 +42,63 @@ export function CreateInviteForm() {
   );
 }
 
+type InviteActionsContextValue = {
+  run: (target: InviteTarget) => void;
+  pending: InviteTarget | null;
+  result: InviteResult;
+  resultsRef: RefObject<HTMLDivElement | null>;
+};
+
+const InviteActionsContext = createContext<InviteActionsContextValue | null>(null);
+
+function useInviteActions(): InviteActionsContextValue {
+  const value = use(InviteActionsContext);
+  if (!value) throw new Error("Invite actions must be rendered inside <InviteActionsProvider>");
+  return value;
+}
+
+async function runInviteAction(_previous: InviteResult, target: InviteTarget): Promise<InviteResult> {
+  const formData = new FormData();
+  formData.set("inviteId", target.inviteId);
+  const action = target.intent === "revoke" ? revokeInviteAction : resendInviteAction;
+  const state = await action(IDLE, formData);
+  return { ...state, intent: target.intent, email: target.email };
+}
+
+/**
+ * Owns the row actions' state above the table, so results and the focus target survive the
+ * refresh that removes a row's actions (e.g. after revoking).
+ */
+export function InviteActionsProvider({ children }: { children: ReactNode }) {
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const [result, dispatch] = useActionState(runInviteAction, IDLE);
+  const [pending, setPending] = useOptimistic<InviteTarget | null>(null);
+
+  function run(target: InviteTarget) {
+    startTransition(() => {
+      setPending(target);
+      dispatch(target);
+    });
+  }
+
+  return <InviteActionsContext value={{ run, pending, result, resultsRef }}>{children}</InviteActionsContext>;
+}
+
+/** Result of the last invite row action; also the focus target after a confirmed revoke. */
+export function InviteResults() {
+  const { pending, result, resultsRef } = useInviteActions();
+  const message = describeInviteResult(result, pending);
+  return (
+    <div ref={resultsRef} tabIndex={-1} className="outline-none">
+      {message ? (
+        <div className="mb-3">
+          <FormAlert tone={message.tone}>{message.text}</FormAlert>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function InviteActions({
   inviteId,
   email,
@@ -44,37 +110,32 @@ export function InviteActions({
   canRevoke: boolean;
   canResend: boolean;
 }) {
-  const [revokeState, revoke, revoking] = useActionState(revokeInviteAction, IDLE);
-  const [resendState, resend, resending] = useActionState(resendInviteAction, IDLE);
-  const message = resendState.message ? resendState : revokeState;
+  const { run, pending, resultsRef } = useInviteActions();
+  const resending = pending?.inviteId === inviteId && pending.intent === "resend";
+  const revoking = pending?.inviteId === inviteId && pending.intent === "revoke";
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex gap-2">
-        {canResend ? (
-          <form action={resend}>
-            <input type="hidden" name="inviteId" value={inviteId} />
-            <SubmitButton pending={resending} variant="outline" size="sm">
-              {resending ? "Sending…" : "Resend"}
-            </SubmitButton>
-          </form>
-        ) : null}
-        {canRevoke ? (
-          <ConfirmDialog
-            triggerLabel="Revoke"
-            pendingLabel="Revoking…"
-            triggerSize="sm"
-            title="Revoke this invite?"
-            description={`The link sent to ${email} will stop working. You can send a new invite later.`}
-            confirmLabel="Revoke invite"
-            tone="destructive"
-            action={revoke}
-            pending={revoking}
-          >
-            <input type="hidden" name="inviteId" value={inviteId} />
-          </ConfirmDialog>
-        ) : null}
-      </div>
-      {message.message ? <InlineStatus tone={message.status === "error" ? "error" : "success"}>{message.message}</InlineStatus> : null}
+    <div className="flex gap-2">
+      {canResend ? (
+        <form action={() => run({ intent: "resend", inviteId, email })}>
+          <SubmitButton pending={resending} variant="outline" size="sm">
+            {resending ? "Sending…" : "Resend"}
+          </SubmitButton>
+        </form>
+      ) : null}
+      {canRevoke ? (
+        <ConfirmDialog
+          triggerLabel="Revoke"
+          pendingLabel="Revoking…"
+          triggerSize="sm"
+          title="Revoke this invite?"
+          description={`The link sent to ${email} will stop working. You can send a new invite later.`}
+          confirmLabel="Revoke invite"
+          tone="destructive"
+          action={() => run({ intent: "revoke", inviteId, email })}
+          pending={revoking}
+          finalFocus={resultsRef}
+        />
+      ) : null}
     </div>
   );
 }
