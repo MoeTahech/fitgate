@@ -2,8 +2,11 @@ import type { Metadata } from "next";
 import { io } from "next/cache";
 import Link from "next/link";
 import { Suspense } from "react";
+import { CenteredCard, CenteredPage } from "@/components/centered-card";
 import { SignOutButton } from "@/components/sign-out-button";
-import { AuthCard } from "@/components/ui/form";
+import { TextLink } from "@/components/text-link";
+import { buttonVariants } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getSessionUser } from "@/lib/auth/session";
 import { findInviteByToken } from "@/lib/services/trainer-invites";
 import { AcceptInviteForm } from "./accept-form";
@@ -25,11 +28,11 @@ async function InviteView({ params }: { params: PageProps<"/invite/trainer/[toke
   if (invite.state !== "valid") {
     const copy = UNUSABLE[invite.state];
     return (
-      <AuthCard title={copy.title} description={copy.body}>
-        <Link href="/" className="text-sm font-medium underline">
+      <CenteredCard title={copy.title} description={copy.body}>
+        <TextLink href="/" className="text-sm">
           Back to FitGate
-        </Link>
-      </AuthCard>
+        </TextLink>
+      </CenteredCard>
     );
   }
 
@@ -37,35 +40,35 @@ async function InviteView({ params }: { params: PageProps<"/invite/trainer/[toke
   const user = await getSessionUser();
   const description = (
     <>
-      This invite is for <span className="font-medium text-zinc-900 dark:text-zinc-100">{invite.email}</span>.
+      This invite is for <span className="font-medium text-foreground">{invite.email}</span>.
     </>
   );
 
   if (!user) {
     return (
-      <AuthCard title="You're invited to join as a trainer" description={description}>
+      <CenteredCard title="You're invited to join as a trainer" description={description}>
         <div className="flex flex-col gap-3">
           <Link
             href={`/sign-in?next=${encodeURIComponent(returnTo)}`}
-            className="flex h-11 items-center justify-center rounded-md bg-zinc-900 px-4 font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900"
+            className={buttonVariants({ size: "lg" })}
           >
             Sign in to accept
           </Link>
           <Link
             href={`/sign-up?next=${encodeURIComponent(returnTo)}`}
-            className="flex h-11 items-center justify-center rounded-md border border-zinc-300 px-4 font-medium dark:border-zinc-700"
+            className={buttonVariants({ variant: "outline", size: "lg" })}
           >
             Create an account
           </Link>
-          <p className="text-sm text-zinc-500">Use {invite.email} so the invite can be matched to your account.</p>
+          <p className="text-sm text-muted-foreground">Use {invite.email} so the invite can be matched to your account.</p>
         </div>
-      </AuthCard>
+      </CenteredCard>
     );
   }
 
   if (user.email !== invite.email) {
     return (
-      <AuthCard
+      <CenteredCard
         title="Wrong account"
         description={
           <>
@@ -79,23 +82,23 @@ async function InviteView({ params }: { params: PageProps<"/invite/trainer/[toke
           size="lg"
           fullWidth
         />
-      </AuthCard>
+      </CenteredCard>
     );
   }
 
   return (
-    <AuthCard title="Accept your trainer invite" description={description}>
+    <CenteredCard title="Accept your trainer invite" description={description}>
       <AcceptInviteForm token={token} />
-    </AuthCard>
+    </CenteredCard>
   );
 }
 
 export default function TrainerInvitePage({ params }: PageProps<"/invite/trainer/[token]">) {
   return (
-    <main className="flex flex-1 items-start justify-center px-4 py-12 sm:items-center">
-      <Suspense fallback={<div className="h-64 w-full max-w-sm animate-pulse rounded-xl bg-zinc-100 dark:bg-zinc-900" />}>
+    <CenteredPage>
+      <Suspense fallback={<Skeleton className="h-64 w-full max-w-sm rounded-xl" />}>
         <InviteView params={params} />
       </Suspense>
-    </main>
+    </CenteredPage>
   );
 }

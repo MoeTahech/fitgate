@@ -1,11 +1,9 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
-import { ROLES, type AppRole } from "@/lib/auth/constants";
+import { ROLE_LABELS, ROLES, type AppRole } from "@/lib/auth/constants";
 import { hardNavigate } from "@/lib/auth/navigation";
 import { changeRoleAction, type RoleFormState } from "./actions";
-
-const LABELS: Record<AppRole, string> = { MEMBER: "Member", TRAINER: "Trainer", ADMIN: "Admin" };
 
 export function RoleForm({ userId, userName, role }: { userId: string; userName: string; role: AppRole }) {
   const [state, action, pending] = useActionState<RoleFormState, FormData>(changeRoleAction, { status: "idle" });
@@ -26,7 +24,7 @@ export function RoleForm({ userId, userName, role }: { userId: string; userName:
         >
           {ROLES.map((value) => (
             <option key={value} value={value}>
-              {LABELS[value]}
+              {ROLE_LABELS[value]}
             </option>
           ))}
         </select>
