@@ -2,6 +2,7 @@ import "server-only";
 import { Prisma } from "@/generated/prisma/client";
 import type { Membership, MembershipMember, MembershipStatus, PaymentStatus, Plan } from "@/generated/prisma/client";
 import type { AppRole } from "@/lib/auth/constants";
+import { rateLimit, type RateLimitPolicy } from "@/lib/rate-limit";
 import { audit } from "@/lib/services/audit";
 import { MembershipError, type OpenBaseConflictDetails } from "./errors";
 import { isOverdue, overdueEndStatus, remainingUsableMs, type FreezeWindow, type GymClock } from "./rules";
@@ -50,6 +51,29 @@ export function requireActiveUser(rows: readonly LockedUser[], userId: string): 
   if (!user) throw new MembershipError("USER_NOT_FOUND");
   if (user.anonymizedAt) throw new MembershipError("USER_ANONYMIZED");
   return user;
+}
+
+/**
+ * The owner (not anonymized) or an active admin may act on the membership; anyone else is
+ * `NOT_OWNER`. The locked rows include the actor.
+ */
+export function authorizeOwnerOrAdmin(rows: readonly LockedUser[], ownerId: string, actorId: string): "owner" | "admin" {
+  if (actorId === ownerId) {
+    requireActiveUser(rows, actorId);
+    return "owner";
+  }
+  const actor = rows.find((row) => row.id === actorId);
+  if (actor?.role !== "ADMIN") throw new MembershipError("NOT_OWNER");
+  requireActiveAdmin(rows, actorId);
+  return "admin";
+}
+
+// ─── Rate limits ─────────────────────────────────────────────────────────────
+
+/** Counts the attempt toward the policy; over the limit fails with `RATE_LIMITED` and `retryAfterSeconds`. */
+export async function consumeRateLimit(policy: RateLimitPolicy, identifier: string): Promise<void> {
+  const decision = await rateLimit(policy, identifier);
+  if (!decision.success) throw new MembershipError("RATE_LIMITED", { retryAfterSeconds: decision.retryAfterSeconds });
 }
 
 export type LockedMembership = Membership & { plan: Plan };
@@ -214,6 +238,21 @@ export async function endMembership(tx: Tx, membership: Pick<Membership, "id">, 
 
 export type CleanupTrigger = "manual_create" | "manual_extend" | "payment_void" | "payment_refund" | "trial_start" | "invite_accept";
 
+/** Ends the locked membership as overdue cleanup would, when its period is over. Returns whether it did. */
+export async function endIfOverdue(tx: Tx, membership: LockedMembership, now: Date, trigger: CleanupTrigger): Promise<boolean> {
+  if (!isOverdue(membership, now)) return false;
+  await endMembership(tx, membership, {
+    status: overdueEndStatus(membership),
+    endedAt: membership.currentPeriodEnd,
+    now,
+    via: "overdue_cleanup",
+    actorId: null,
+    ipHash: null,
+    details: { trigger },
+  });
+  return true;
+}
+
 /**
  * Ends the overdue memberships the person holds an open seat on (`EXPIRED`, or `CANCELLED` when
  * set to cancel at period end, with `endedAt = currentPeriodEnd`). The caller holds the person's
@@ -231,17 +270,7 @@ export async function endOverdueMemberships(tx: Tx, userId: string, now: Date, t
 
   const ended: string[] = [];
   for (const membership of await lockMemberships(tx, candidates.map((row) => row.id))) {
-    if (!isOverdue(membership, now)) continue;
-    await endMembership(tx, membership, {
-      status: overdueEndStatus(membership),
-      endedAt: membership.currentPeriodEnd,
-      now,
-      via: "overdue_cleanup",
-      actorId: null,
-      ipHash: null,
-      details: { trigger },
-    });
-    ended.push(membership.id);
+    if (await endIfOverdue(tx, membership, now, trigger)) ended.push(membership.id);
   }
   return ended;
 }

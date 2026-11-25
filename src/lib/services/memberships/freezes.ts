@@ -6,6 +6,7 @@ import { audit } from "@/lib/services/audit";
 import { addDaysZoned, startOfZonedDay, zonedParts, type LocalDate } from "@/lib/time";
 import { MembershipError, toMembershipError, type FreezeDatesDetails } from "./errors";
 import {
+  authorizeOwnerOrAdmin,
   getGymClock,
   lockMembership,
   lockUsers,
@@ -320,7 +321,7 @@ export async function cancelFreeze(input: CancelFreezeInput): Promise<FreezeResu
 
   return db.$transaction(async (tx) => {
     const { users, membership, freeze } = await lockFreeze(tx, freezeId, actorId);
-    const via = authorizeCancel(users, membership, actorId);
+    const via = authorizeOwnerOrAdmin(users, membership.ownerId, actorId);
     assertOpenAndFuture(freeze, now, OPEN_STATUSES);
 
     let periodShift: PeriodShift | null = null;
@@ -341,16 +342,4 @@ export async function cancelFreeze(input: CancelFreezeInput): Promise<FreezeResu
     });
     return freezeResult(freeze, "CANCELLED", periodShift);
   });
-}
-
-/** The owner (not anonymized) or an active admin may cancel; anyone else is `NOT_OWNER`. */
-function authorizeCancel(users: readonly LockedUser[], membership: LockedMembership, actorId: string): "owner" | "admin" {
-  if (actorId === membership.ownerId) {
-    requireActiveUser(users, actorId);
-    return "owner";
-  }
-  const actor = users.find((user) => user.id === actorId);
-  if (actor?.role !== "ADMIN") throw new MembershipError("NOT_OWNER");
-  requireActiveAdmin(users, actorId);
-  return "admin";
 }

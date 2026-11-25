@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   alreadyRegisteredEmail,
+  membershipInviteEmail,
   passwordResetEmail,
   trainerInviteEmail,
   verificationEmail,
@@ -33,5 +34,21 @@ describe("email templates", () => {
       timeZone: "Asia/Beirut",
     });
     expect(email.text).toContain("2 July 2026 at 00:30");
+  });
+
+  it("name the inviter and plan in the membership invite, escaped in HTML, with the expiry in the gym time zone", () => {
+    const email = membershipInviteEmail({
+      url,
+      inviterName: " <b>Sam</b> ",
+      planName: "Couples Premium",
+      expiresAt: new Date("2026-12-09T08:00:00Z"),
+      timeZone: "Asia/Beirut",
+    });
+    expect(email.subject).toBe("You're invited to share a FitGate membership");
+    expect(email.text).toContain("<b>Sam</b> invited you to share their Couples Premium membership at FitGate.");
+    expect(email.text).toContain("9 December 2026 at 10:00");
+    expect(email.text).toContain(url);
+    expect(email.html).not.toContain("<b>Sam</b>");
+    expect(email.html).toContain("&lt;b&gt;Sam&lt;/b&gt; invited you");
   });
 });

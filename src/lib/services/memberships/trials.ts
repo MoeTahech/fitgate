@@ -3,10 +3,10 @@ import { z } from "zod";
 import type { Plan, TrialKind } from "@/generated/prisma/client";
 import { keyedHash } from "@/lib/crypto";
 import { db } from "@/lib/db";
-import { rateLimit, type RateLimitPolicy } from "@/lib/rate-limit";
 import { audit } from "@/lib/services/audit";
 import { MembershipError, toMembershipError, type MembershipErrorCode } from "./errors";
 import {
+  consumeRateLimit,
   endOverdueMemberships,
   getGymClock,
   lockUsers,
@@ -68,11 +68,6 @@ export function trialIpIdentifier(ip: string | null): string {
   return ip ?? "no-ip";
 }
 
-async function consumeLimit(policy: RateLimitPolicy, identifier: string): Promise<void> {
-  const decision = await rateLimit(policy, identifier);
-  if (!decision.success) throw new MembershipError("RATE_LIMITED", { retryAfterSeconds: decision.retryAfterSeconds });
-}
-
 /**
  * Decision 3 and the start conditions, without writing: verified email, an active trial plan of
  * the kind, no redemption of the kind by the account or its email, no paid history with the
@@ -120,8 +115,8 @@ async function checkTrial(
 export async function startTrial(input: StartTrialInput): Promise<StartTrialResult> {
   const { userId, kind, ip, ipHash } = startInput.parse(input);
 
-  await consumeLimit("trialStartUser", userId);
-  await consumeLimit("trialStartIp", trialIpIdentifier(ip));
+  await consumeRateLimit("trialStartUser", userId);
+  await consumeRateLimit("trialStartIp", trialIpIdentifier(ip));
 
   const now = new Date();
   try {

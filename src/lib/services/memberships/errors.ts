@@ -31,7 +31,19 @@ export type MembershipErrorCode =
   | "FREEZE_ALREADY_OPEN"
   | "FREEZE_NOT_FOUND"
   | "FREEZE_NOT_OPEN"
-  | "FREEZE_STARTED";
+  | "FREEZE_STARTED"
+  | "NOT_COUPLES_PLAN"
+  | "MEMBERSHIP_NOT_USABLE"
+  | "NO_FREE_SEAT"
+  | "INVITE_OWN_EMAIL"
+  | "INVITE_NOT_FOUND"
+  | "INVITE_NOT_PENDING"
+  | "INVITE_EXPIRED"
+  | "INVITE_REVOKED"
+  | "INVITE_ALREADY_ACCEPTED"
+  | "EMAIL_MISMATCH"
+  | "OWN_MEMBERSHIP"
+  | "PARTNER_NOT_FOUND";
 
 export type MembershipErrorDetails = Readonly<Record<string, string | number | boolean | null>>;
 

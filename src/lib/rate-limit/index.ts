@@ -24,6 +24,8 @@ export const RATE_LIMIT_POLICIES = {
   trialStartUser: { limit: 3, windowSeconds: DAY },
   /** Per IP. */
   trialStartIp: { limit: 10, windowSeconds: DAY },
+  /** Per membership owner; couples invite sends and resends together. */
+  membershipInvite: { limit: 10, windowSeconds: DAY },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitPolicy = keyof typeof RATE_LIMIT_POLICIES;

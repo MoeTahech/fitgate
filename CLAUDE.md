@@ -80,15 +80,19 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   transaction of the change.
 - Memberships: `src/lib/services/memberships/`. `rules.ts` pure rules (usability, overdue,
   periods); `internal.ts` shared transaction helpers for the membership services only
-  (`lockUsers`/`lockMembership`, `requireActiveAdmin`, `getGymClock`, overdue cleanup,
-  `endMembership`, `resolveOpenBase`); `errors.ts` `MembershipError(code, details?)` and
+  (`lockUsers`/`lockMembership`, `requireActiveAdmin`, `authorizeOwnerOrAdmin`, `getGymClock`,
+  overdue cleanup and `endIfOverdue`, `endMembership`, `resolveOpenBase`, `consumeRateLimit`); `errors.ts` `MembershipError(code, details?)` and
   `toMembershipError`, which maps backstop unique-index violations to domain codes;
   `schemas.ts` shared Zod schemas (`noteSchema`/`reasonSchema`: trimmed, max 500, no email
   or URL; `referenceSchema`, `manualPaymentMethodSchema`); `manual.ts` manual create/extend;
   `corrections.ts` void and manual refund of manual payments; `freezes.ts` request, approve,
   reject, cancel (approval shifts the period end and valid payment periods; cancel undoes it);
   `trials.ts` `startTrial` (rate limited per user and IP before its transaction) and the
-  read-only `trialEligibility`, which share one check and report the same codes.
+  read-only `trialEligibility`, which share one check and report the same codes; `invites.ts`
+  couples invites (create/resend share the `membershipInvite` limit; send the email with
+  `sendMembershipInvite` after commit), accept, remove partner, leave, and the public
+  `findMembershipInviteByToken` for `/invite/membership/[token]`. Accept failures that record a
+  change (invite found expired, overdue membership ended) commit it, then throw.
 - Database: schema in `prisma/schema.prisma`, config in `prisma.config.ts`
   (loads `.env` itself; migrations use `DIRECT_URL`, falling back to `DATABASE_URL`).
   Import the client only via `db` from `src/lib/db.ts`. Generated client lives in
