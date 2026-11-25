@@ -31,11 +31,18 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   (its scripts use an Upstash-only flag that local Redis rejects).
 - Email via nodemailer: Mailpit locally (`EMAIL_TRANSPORT=smtp`) or `console`;
   production provider not chosen yet.
+- UI: shadcn/ui (`base-nova` style, `components.json`) on Base UI (`@base-ui/react`),
+  `class-variance-authority`, `lucide-react` icons, `tw-animate-css`. Class merging via
+  `cn` from `@/lib/utils` (re-exports the `cn` package; never import `cn` directly). The
+  shadcn CLI only via `npx shadcn@4.23.0`, not installed; the state variants its
+  `tailwind.css` would add are copied into `globals.css`.
 - Planned, not installed yet: Stripe (test mode only).
 
 ## Commands
 - `npm run dev` / `npm run build` / `npm run start`
 - `npm run lint` (ESLint 9 flat config in `eslint.config.mjs`)
+- `npx shadcn@4.23.0 add <item>` add a UI primitive to `src/components/ui/`; then switch
+  its `cn` import to `@/lib/utils` and adjust it to our tokens.
 - `npx tsc --noEmit` type check. Route types (`PageProps`, `LayoutProps`) are
   generated: after adding or renaming routes run `npx next typegen` first.
 - `docker compose up -d` start local services (Postgres, Redis + SRH REST proxy
