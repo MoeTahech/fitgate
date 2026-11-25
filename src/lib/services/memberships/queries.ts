@@ -540,6 +540,7 @@ export type OpenBaseView = {
   planName: string;
   seatRole: MemberRole;
   remainingDays: number;
+  /** The member owns the base and a partner holds its second seat (a switch would end it). */
   hasPartner: boolean;
 };
 
@@ -644,7 +645,7 @@ export async function getMemberDetail(userId: string): Promise<MemberDetail | nu
         planName: baseSeat.membership.plan.name,
         seatRole: baseSeat.role,
         remainingDays: remainingUsableDays(baseSeat.membership, baseSeat.membership.freezes, now),
-        hasPartner: baseSeat.membership._count.members > 0,
+        hasPartner: baseSeat.role === "OWNER" && baseSeat.membership._count.members > 0,
       }
     : null;
   const openBaseSnapshot = baseSeat

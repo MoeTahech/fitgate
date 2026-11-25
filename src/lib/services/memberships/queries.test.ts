@@ -574,15 +574,17 @@ describe("getMemberDetail", () => {
 
   it("shows a partner's base as a partner seat, and ignores an open base whose period is over", async () => {
     const plan = await createCouplesPlan({ name: "Couples" });
-    const { admin, membershipId } = await manualMembership({ plan });
+    const { admin, member: owner, membershipId } = await manualMembership({ plan });
     const partner = await createUser();
     await createSeat(membershipId, partner.id, { role: "PARTNER" });
     const lapsed = await createUser();
     await createOwnedMembership(lapsed, await createPlan(), { startsAt: at(-31 * DAY), currentPeriodEnd: at(-HOUR) });
 
     signInAs(admin);
+    const ownerDetail = await getMemberDetail(owner.id);
+    expect(ownerDetail?.recordPayment.openBase).toMatchObject({ planName: "Couples", seatRole: "OWNER", hasPartner: true });
     const partnerDetail = await getMemberDetail(partner.id);
-    expect(partnerDetail?.recordPayment.openBase).toMatchObject({ planName: "Couples", seatRole: "PARTNER", hasPartner: true });
+    expect(partnerDetail?.recordPayment.openBase).toMatchObject({ planName: "Couples", seatRole: "PARTNER", hasPartner: false });
     expect(partnerDetail?.recordPayment.plans.find((p) => p.name === "Couples")?.replacement).toEqual({
       action: "conflict",
       reason: "PARTNER_SEAT",
