@@ -1,9 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { AuthCard, Field, FormAlert, SubmitButton } from "@/components/ui/form";
+import { CenteredCard } from "@/components/centered-card";
+import { FormAlert } from "@/components/form-alert";
+import { InputField } from "@/components/form-field";
+import { SubmitButton } from "@/components/submit-button";
+import { TextLink } from "@/components/text-link";
 import { authClient } from "@/lib/auth/client";
 import { describeAuthError } from "@/lib/auth/client-errors";
 import { hardNavigate } from "@/lib/auth/navigation";
@@ -45,14 +48,14 @@ export function SignInForm() {
   }
 
   return (
-    <AuthCard
+    <CenteredCard
       title="Sign in"
       footer={
         <>
           New to FitGate?{" "}
-          <Link href={`/sign-up?next=${encodeURIComponent(next)}`} className="font-medium text-zinc-900 underline dark:text-zinc-100">
+          <TextLink href={`/sign-up?next=${encodeURIComponent(next)}`}>
             Create an account
-          </Link>
+          </TextLink>
         </>
       }
     >
@@ -66,9 +69,9 @@ export function SignInForm() {
             <ResendVerification email={unverifiedEmail} callbackURL={verificationCallbackURL(next)} />
           </div>
         ) : null}
-        <Field id="email" name="email" type="email" label="Email" autoComplete="email" required error={errors.email} />
+        <InputField id="email" name="email" type="email" label="Email" autoComplete="email" required error={errors.email} />
         <div className="flex flex-col gap-1.5">
-          <Field
+          <InputField
             id="password"
             name="password"
             type="password"
@@ -77,12 +80,12 @@ export function SignInForm() {
             required
             error={errors.password}
           />
-          <Link href="/forgot-password" className="self-end text-sm text-zinc-600 underline dark:text-zinc-400">
+          <TextLink href="/forgot-password" className="self-end text-sm font-normal">
             Forgot password?
-          </Link>
+          </TextLink>
         </div>
-        <SubmitButton pending={pending}>{pending ? "Signing in…" : "Sign in"}</SubmitButton>
+        <SubmitButton pending={pending} size="lg">{pending ? "Signing in…" : "Sign in"}</SubmitButton>
       </form>
-    </AuthCard>
+    </CenteredCard>
   );
 }

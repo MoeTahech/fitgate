@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { AuthCard, Field, FormAlert, SubmitButton } from "@/components/ui/form";
+import { CenteredCard } from "@/components/centered-card";
+import { FormAlert } from "@/components/form-alert";
+import { InputField } from "@/components/form-field";
+import { SubmitButton } from "@/components/submit-button";
+import { TextLink } from "@/components/text-link";
+import { buttonVariants } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/client";
 import { describeAuthError, isRateLimited } from "@/lib/auth/client-errors";
 import { fieldErrors, newPasswordSchema, PASSWORD_MIN_LENGTH } from "@/lib/auth/schemas";
@@ -40,32 +45,32 @@ export function ResetPasswordForm() {
 
   if (done) {
     return (
-      <AuthCard
+      <CenteredCard
         title="Password updated"
         description="Your password has been changed and you've been signed out on all devices."
       >
         <Link
           href="/sign-in"
-          className="flex h-11 items-center justify-center rounded-md bg-zinc-900 px-4 font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+          className={buttonVariants({ size: "lg" })}
         >
           Sign in
         </Link>
-      </AuthCard>
+      </CenteredCard>
     );
   }
 
   const linkUnusable = !token || params.has("error");
 
   return (
-    <AuthCard
+    <CenteredCard
       title="Choose a new password"
-      footer={<Link href="/forgot-password" className="font-medium underline">Request a new link</Link>}
+      footer={<TextLink href="/forgot-password">Request a new link</TextLink>}
     >
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
         {formError ? <FormAlert tone="error">{formError}</FormAlert> : null}
         {linkUnusable ? null : (
           <>
-            <Field
+            <InputField
               id="password"
               name="password"
               type="password"
@@ -76,7 +81,7 @@ export function ResetPasswordForm() {
               hint={`At least ${PASSWORD_MIN_LENGTH} characters.`}
               error={errors.password}
             />
-            <Field
+            <InputField
               id="confirmPassword"
               name="confirmPassword"
               type="password"
@@ -85,10 +90,10 @@ export function ResetPasswordForm() {
               required
               error={errors.confirmPassword}
             />
-            <SubmitButton pending={pending}>{pending ? "Saving…" : "Update password"}</SubmitButton>
+            <SubmitButton pending={pending} size="lg">{pending ? "Saving…" : "Update password"}</SubmitButton>
           </>
         )}
       </form>
-    </AuthCard>
+    </CenteredCard>
   );
 }

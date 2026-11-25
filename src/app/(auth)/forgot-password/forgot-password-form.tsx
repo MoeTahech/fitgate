@@ -1,8 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useState, type FormEvent } from "react";
-import { AuthCard, Field, FormAlert, SubmitButton } from "@/components/ui/form";
+import { CenteredCard } from "@/components/centered-card";
+import { FormAlert } from "@/components/form-alert";
+import { InputField } from "@/components/form-field";
+import { SubmitButton } from "@/components/submit-button";
+import { TextLink } from "@/components/text-link";
 import { authClient } from "@/lib/auth/client";
 import { describeAuthError } from "@/lib/auth/client-errors";
 import { emailOnlySchema, fieldErrors } from "@/lib/auth/schemas";
@@ -36,10 +39,10 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <AuthCard
+    <CenteredCard
       title="Reset your password"
       description="Enter the email you signed up with and we'll send you a reset link."
-      footer={<Link href="/sign-in" className="font-medium underline">Back to sign in</Link>}
+      footer={<TextLink href="/sign-in">Back to sign in</TextLink>}
     >
       {sent ? (
         <FormAlert tone="success">
@@ -48,10 +51,10 @@ export function ForgotPasswordForm() {
       ) : (
         <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
           {formError ? <FormAlert tone="error">{formError}</FormAlert> : null}
-          <Field id="email" name="email" type="email" label="Email" autoComplete="email" required error={error} />
-          <SubmitButton pending={pending}>{pending ? "Sending…" : "Send reset link"}</SubmitButton>
+          <InputField id="email" name="email" type="email" label="Email" autoComplete="email" required error={error} />
+          <SubmitButton pending={pending} size="lg">{pending ? "Sending…" : "Send reset link"}</SubmitButton>
         </form>
       )}
-    </AuthCard>
+    </CenteredCard>
   );
 }
