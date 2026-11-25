@@ -1,4 +1,5 @@
 import "server-only";
+import { formatLocal } from "@/lib/time";
 
 export type EmailContent = { subject: string; text: string; html: string };
 
@@ -120,6 +121,26 @@ export function trainerInviteEmail(input: { url: string; expiresAt: Date; timeZo
     subject: `You're invited to join ${APP_NAME} as a trainer`,
     paragraphs: [
       `You've been invited to join ${APP_NAME} as a trainer.`,
+      `Sign in or create an account with this email address to accept. The invite expires on ${expires}.`,
+    ],
+    action: { label: "Accept invite", url: input.url },
+    footer: "If you weren't expecting this, you can ignore this email.",
+  });
+}
+
+export function membershipInviteEmail(input: {
+  url: string;
+  inviterName: string;
+  planName: string;
+  expiresAt: Date;
+  timeZone: string;
+}): EmailContent {
+  const expires = formatLocal(input.expiresAt, input.timeZone, { dateStyle: "long", timeStyle: "short" });
+
+  return render({
+    subject: `You're invited to share a ${APP_NAME} membership`,
+    paragraphs: [
+      `${input.inviterName.trim()} invited you to share their ${input.planName} membership at ${APP_NAME}.`,
       `Sign in or create an account with this email address to accept. The invite expires on ${expires}.`,
     ],
     action: { label: "Accept invite", url: input.url },

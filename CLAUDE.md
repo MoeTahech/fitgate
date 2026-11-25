@@ -44,6 +44,10 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
 - `npm run db:seed` seed plans, gym settings, opening hours (create-only, safe to re-run)
 - `npm run db:studio`; `npx prisma generate` (also runs on `postinstall`; Prisma 7
   `migrate dev` does not run it, so run it after schema changes)
+- `/verify` (project skill in `.claude/skills/verify/`): tsc, lint, tests in order;
+  stops at the first failure.
+- `/migration` (project skill in `.claude/skills/migration/`): the full schema
+  change workflow (create-only, raw SQL, drift check, generate, constraint tests).
 - `npm test` (`vitest run`) / `npm run test:watch`. Needs Docker running and
   `TEST_DATABASE_URL` (database name must end in `_test`).
 - `npm run auth:create-admin` create the first admin (only while none exists);
@@ -60,7 +64,14 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
 - Integration tests hit real local services: Redis through SRH (use a unique key
   prefix) and Mailpit (`tests/support/mailpit.ts`). Requests to Better Auth go
   through the route handler with a random `x-forwarded-for` so per-IP limits
-  don't collide across runs. Factories in `tests/support/factories.ts`.
+  don't collide across runs. Factories in `tests/support/factories.ts` (plan presets,
+  `createOwnedMembership`); `expectMembershipError` in `tests/support/membership-errors.ts`.
+- Time-dependent tests fake only `Date`: `vi.useFakeTimers({ toFake: ["Date"] })` +
+  `vi.setSystemTime(...)`, restored with `vi.useRealTimers()` in `afterEach`.
+- Code that calls `requireUser`/`requireRole` is tested by mocking `@/lib/auth/session` with the
+  real guards over a hoisted user: `vi.mock("@/lib/auth/session", async () => (await
+  import("@/lib/auth/guards")).createGuards(async () => session.user))`, with `session` from
+  `vi.hoisted` and reset in `afterEach` (see `memberships/queries.test.ts`).
 
 ## Architecture
 - `next.config.ts` enables `cacheComponents` and `partialPrefetching`; consult
@@ -69,6 +80,31 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   in `src/app/globals.css`.
 - Path alias: `@/*` -> `src/*`.
 - Business logic goes in `src/lib/services/`; route handlers stay thin.
+- Audit rows: `audit(tx, entry)` from `src/lib/services/audit.ts`, always with the
+  transaction of the change.
+- Memberships: `src/lib/services/memberships/`. `rules.ts` pure rules (usability, overdue,
+  periods, `freezeDisplayStatus`, `remainingUsableDays`, and `openBaseReplacement`: decision 13's
+  supersede/switch/conflict outcome, shared by `resolveOpenBase` and the record-payment read
+  model); `internal.ts` shared transaction helpers for the membership services only
+  (`lockUsers`/`lockMembership`, `requireActiveAdmin`, `authorizeOwnerOrAdmin`, `getGymClock`,
+  overdue cleanup and `endIfOverdue`, `endMembership`, `resolveOpenBase`, `consumeRateLimit`); `errors.ts` `MembershipError(code, details?)` and
+  `toMembershipError`, which maps backstop unique-index violations to domain codes;
+  `schemas.ts` shared Zod schemas (`noteSchema`/`reasonSchema`: trimmed, max 500, no email
+  or URL; `referenceSchema`, `manualPaymentMethodSchema`); `manual.ts` manual create/extend;
+  `corrections.ts` void and manual refund of manual payments (`correctionOptions` reports which
+  corrections a payment accepts); `freezes.ts` request, approve,
+  reject, cancel (approval shifts the period end and valid payment periods; cancel undoes it);
+  `trials.ts` `startTrial` (rate limited per user and IP before its transaction) and the
+  read-only `trialEligibility`, which share one check and report the same codes; `invites.ts`
+  couples invites (create/resend share the `membershipInvite` limit; send the email with
+  `sendMembershipInvite` after commit), accept, remove partner, leave, and the public
+  `findMembershipInviteByToken` for `/invite/membership/[token]`. Accept failures that record a
+  change (invite found expired, overdue membership ended) commit it, then throw.
+  `queries.ts` read models for pages: member (`getMyMemberships`, `getMyTrialEligibility`,
+  `listJoinablePlans`) and admin (`listMembers`, `getMemberDetail`, `listMemberships`,
+  `listPendingFreezes`, `getMembershipDetail`, `listPayments`). Each calls `requireUser`/
+  `requireRole("ADMIN")` first, works out display status from stored dates via the rules (SQL
+  status filters mirror `effectiveStatus`), never writes, and returns the gym `timeZone`.
 - Database: schema in `prisma/schema.prisma`, config in `prisma.config.ts`
   (loads `.env` itself; migrations use `DIRECT_URL`, falling back to `DATABASE_URL`).
   Import the client only via `db` from `src/lib/db.ts`. Generated client lives in
@@ -88,22 +124,35 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   policies in its `index.ts`. Redis failures fall back to a per-instance memory limiter.
 - Email: `sendEmail` + templates from `src/lib/email`.
 - Crypto: `generateToken`, `sha256`, `keyedHash(purpose, value)` from `src/lib/crypto.ts`.
+- Time zones: all zone math and local-time display go through `src/lib/time.ts`
+  (`zonedParts`, `zonedToInstant`, `addDaysZoned`, `addMonthsZoned`, `startOfZonedDay`,
+  `localMinutes`, `localElapsedMs`, `formatLocal`, `formatLocalTime`). New code does no ad-hoc offset
+  arithmetic and builds no own `Intl.DateTimeFormat`. DST gaps resolve forward, overlaps
+  to the earlier instant.
 
 ## Conventions
 - Validate all external input with Zod.
 - Authorization is enforced on the server, never only in the UI.
-- Store times in UTC; convert to the gym's time zone only for display.
+- Store times in UTC; convert to the gym's time zone (`GymSettings.timeZone`) only for
+  display and for local-calendar math (periods, opening hours), via `src/lib/time.ts`.
 - Money as integer cents.
 - Booking, waitlist, and credit changes run inside a DB transaction.
+- Explicit time in membership (and later booking) services: take one `now` per call and pass
+  it down; every timestamp written comes from it, including `createdAt` on inserted rows and
+  audit rows. No SQL `now()`/`CURRENT_TIMESTAMP` or column defaults in time-dependent logic,
+  queries, or constraints: tests fake only the JS `Date`.
 - Row locks via `tx.$queryRaw ... FOR UPDATE`; lock order is always
   User -> Membership -> ClassSession to avoid deadlocks.
 - Audit log rows are written in the same transaction as the change. Details
   never contain emails, links, tokens, or other personal data; IPs only as
   `keyedHash("ip", ...)` (`getRequestIpHash()`).
 - Authorization: every server action, route handler, and data-access function
-  calls `requireUser()`/`requireRole(...)` (uncached, reads the DB session).
-  Pages use `requirePageUser(returnTo, ...roles)` (sign-in redirect, 404 on a
-  missing role). `getCurrentUser()` is browser-cached and for display only.
+  that requires a signed-in user calls `requireUser()`/`requireRole(...)`
+  (uncached, reads the DB session). `getSessionUser()` (the same uncached read,
+  returning null when signed out) is allowed only where a signed-out visitor gets
+  a normal response, e.g. the invite accept pages and actions showing "sign in to
+  accept". Pages use `requirePageUser(returnTo, ...roles)` (sign-in redirect, 404
+  on a missing role). `getCurrentUser()` is browser-cached and for display only.
   Services that change privileges also verify the actor inside their transaction.
 - After the current user's auth state changes on the client (sign-in, sign-out,
   own role change), leave with `hardNavigate()` from `src/lib/auth/navigation.ts`,

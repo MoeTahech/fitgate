@@ -26,7 +26,7 @@ export type RateLimiter = {
 };
 
 export function createRateLimiter(options: RateLimiterOptions): RateLimiter {
-  const now = options.now ?? Date.now;
+  const now = options.now ?? (() => Date.now());
   const logger = options.logger ?? console;
   const logIntervalMs = options.logIntervalMs ?? 60_000;
   const maxBlockedKeys = options.maxBlockedKeys ?? 10_000;

@@ -7,6 +7,7 @@ import { generateToken, sha256 } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { sendEmail, trainerInviteEmail } from "@/lib/email";
 import { env } from "@/lib/env";
+import { audit } from "@/lib/services/audit";
 import type { InviteStatus, Prisma } from "@/generated/prisma/client";
 
 export const TRAINER_INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -65,15 +66,6 @@ async function lockInviteById(tx: Tx, inviteId: string): Promise<LockedInvite | 
     FROM trainer_invites WHERE id = ${inviteId}::uuid FOR UPDATE
   `;
   return invite;
-}
-
-function audit(
-  tx: Tx,
-  data: { actorId: string | null; action: string; targetType: string; targetId: string; details?: Prisma.InputJsonObject; ipHash?: string | null },
-) {
-  return tx.auditLog.create({
-    data: { ...data, details: data.details ?? {}, ipHash: data.ipHash ?? null },
-  });
 }
 
 async function expirePending(tx: Tx, where: { email?: string } = {}): Promise<void> {

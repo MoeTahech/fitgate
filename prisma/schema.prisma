@@ -42,6 +42,20 @@ enum BillingType {
   @@map("billing_type")
 }
 
+enum TrialKind {
+  GYM
+  CLASS
+
+  @@map("trial_kind")
+}
+
+enum DurationMode {
+  ROLLING
+  CALENDAR_DAYS
+
+  @@map("duration_mode")
+}
+
 enum MembershipStatus {
   ACTIVE
   PAST_DUE
@@ -188,9 +202,10 @@ model User {
   membershipSeats        MembershipMember[]
   invitesSent            MembershipInvite[] @relation("InviteSender")
   invitesAccepted        MembershipInvite[] @relation("InviteAcceptor")
+  invitesRevoked         MembershipInvite[] @relation("InviteRevoker")
   freezesRequested       MembershipFreeze[] @relation("FreezeRequester")
   freezesDecided         MembershipFreeze[] @relation("FreezeDecider")
-  trialRedemption        TrialRedemption?
+  trialRedemptions       TrialRedemption[]
   payments               Payment[]          @relation("PaymentPayer")
   paymentsRecorded       Payment[]          @relation("PaymentRecorder")
   paymentsVoided         Payment[]          @relation("PaymentVoider")
@@ -306,27 +321,28 @@ model OpeningHours {
 // ─── Plans ───────────────────────────────────────────────────────────────────
 
 model Plan {
-  id              String      @id @default(uuid(7)) @db.Uuid
-  slug            String      @unique
+  id              String        @id @default(uuid(7)) @db.Uuid
+  slug            String        @unique
   name            String
   description     String?
   type            PlanType
-  openAccess      Boolean     @map("open_access")
-  classAccess     ClassAccess @map("class_access")
+  openAccess      Boolean       @map("open_access")
+  classAccess     ClassAccess   @map("class_access")
   credits         Int?
   billing         BillingType
-  intervalMonths  Int?        @map("interval_months")
-  durationDays    Int?        @map("duration_days")
-  priceCents      Int         @map("price_cents")
-  currency        String      @default("usd") @db.Char(3)
-  maxMembers      Int         @default(1) @map("max_members")
-  isTrial         Boolean     @default(false) @map("is_trial")
-  active          Boolean     @default(true)
-  sortOrder       Int         @default(0) @map("sort_order")
-  stripeProductId String?     @map("stripe_product_id")
-  stripePriceId   String?     @unique @map("stripe_price_id")
-  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  intervalMonths  Int?          @map("interval_months")
+  durationDays    Int?          @map("duration_days")
+  durationMode    DurationMode? @map("duration_mode")
+  priceCents      Int           @map("price_cents")
+  currency        String        @default("usd") @db.Char(3)
+  maxMembers      Int           @default(1) @map("max_members")
+  trialKind       TrialKind?    @map("trial_kind")
+  active          Boolean       @default(true)
+  sortOrder       Int           @default(0) @map("sort_order")
+  stripeProductId String?       @map("stripe_product_id")
+  stripePriceId   String?       @unique @map("stripe_price_id")
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   memberships Membership[]
 
@@ -401,11 +417,14 @@ model MembershipInvite {
   expiresAt    DateTime     @map("expires_at") @db.Timestamptz(3)
   acceptedAt   DateTime?    @map("accepted_at") @db.Timestamptz(3)
   acceptedById String?      @map("accepted_by_id")
+  revokedAt    DateTime?    @map("revoked_at") @db.Timestamptz(3)
+  revokedById  String?      @map("revoked_by_id")
   createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
 
   membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
   invitedBy  User       @relation("InviteSender", fields: [invitedById], references: [id], onDelete: Restrict)
   acceptedBy User?      @relation("InviteAcceptor", fields: [acceptedById], references: [id], onDelete: Restrict)
+  revokedBy  User?      @relation("InviteRevoker", fields: [revokedById], references: [id], onDelete: Restrict)
 
   @@index([email])
   @@index([membershipId, status])
@@ -433,16 +452,20 @@ model MembershipFreeze {
 }
 
 model TrialRedemption {
-  id           String   @id @default(uuid(7)) @db.Uuid
-  userId       String   @unique @map("user_id")
-  membershipId String   @unique @map("membership_id") @db.Uuid
-  emailHash    String   @unique @map("email_hash")
-  phoneHash    String?  @unique @map("phone_hash")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  id           String    @id @default(uuid(7)) @db.Uuid
+  userId       String    @map("user_id")
+  membershipId String    @unique @map("membership_id") @db.Uuid
+  kind         TrialKind
+  emailHash    String    @map("email_hash")
+  phoneHash    String?   @map("phone_hash")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
   user       User       @relation(fields: [userId], references: [id], onDelete: Restrict)
   membership Membership @relation(fields: [membershipId], references: [id], onDelete: Restrict)
 
+  @@unique([userId, kind])
+  @@unique([emailHash, kind])
+  @@unique([phoneHash, kind])
   @@map("trial_redemptions")
 }
 

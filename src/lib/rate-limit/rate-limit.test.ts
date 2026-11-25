@@ -170,6 +170,24 @@ describe("rate limiter", () => {
   });
 });
 
+describe("rate limiter default clock", () => {
+  it("reads the current Date.now on every call, so a clock installed after creation applies", async () => {
+    const limiter = createRateLimiter({ primary: createMemoryStore(), fallback: unusedFallback, prefix: "p", hash });
+    try {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(START);
+      expect((await consumeMany(limiter, 4)).map((r) => r.success)).toEqual([true, true, true, false]);
+
+      vi.useRealTimers();
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(START + 2 * WINDOW_MS);
+      expect((await limiter.consume("policy", "id", RULE)).success).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("memory store", () => {
   it("evicts entries beyond its key cap", async () => {
     const store = createMemoryStore({ maxKeys: 2 });
