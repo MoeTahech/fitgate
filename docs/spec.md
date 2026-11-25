@@ -71,7 +71,8 @@ All period math runs in the gym time zone and is DST-safe.
   check-in history, sharing one membership status.
   - The owner sends the invite from their membership page; an admin can see and
     revoke it. Invites are valid 7 days, single use, and stored hashed. A new invite
-    revokes the previous pending one. Sends and resends are rate limited.
+    revokes the previous pending one. Only the most recent invite can be resent.
+    Sends and resends are rate limited.
   - The accepter's verified email must match the invite. Sending an invite never
     reveals whether the email already holds a base seat; that is only checked at
     acceptance and shown to the accepter.

@@ -269,6 +269,20 @@ describe("resendMembershipInvite", () => {
     expect(await db.membershipInvite.findUniqueOrThrow({ where: { id: issued.inviteId } })).toMatchObject({ status: "EXPIRED" });
   });
 
+  it("only resends the membership's most recent invite, keeping a newer pending one", async () => {
+    const { owner, membership, issued } = await pendingInvite();
+    vi.setSystemTime(at(8 * DAY));
+    const newer = await invite(owner, membership, partnerEmail());
+
+    await expectMembershipError(
+      resendMembershipInvite({ actorId: owner.id, inviteId: issued.inviteId, ipHash: null }),
+      "INVITE_NOT_LATEST",
+    );
+
+    expect(await db.membershipInvite.findUniqueOrThrow({ where: { id: newer.inviteId } })).toMatchObject({ status: "PENDING" });
+    expect(await db.membershipInvite.count()).toBe(2);
+  });
+
   it("rejects accepted and revoked invites, and anyone but the owner", async () => {
     const { owner, issued, partner } = await pendingInvite();
     await expectMembershipError(resendMembershipInvite({ actorId: partner.id, inviteId: issued.inviteId, ipHash: null }), "NOT_OWNER");

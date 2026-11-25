@@ -205,7 +205,9 @@ export async function createMembershipInvite(input: CreateMembershipInviteInput)
 
 /**
  * The owner sends a pending or expired invite again: it is replaced by a new invite (new token,
- * 7 days) for the same email. Counts toward `membershipInvite`.
+ * 7 days) for the same email. Only the membership's most recent invite can be resent
+ * (`INVITE_NOT_LATEST`), so an old invite never supersedes a newer one. Counts toward
+ * `membershipInvite`.
  */
 export async function resendMembershipInvite(input: MembershipInviteActionInput): Promise<IssuedMembershipInvite> {
   const { actorId, inviteId, ipHash } = inviteActionInput.parse(input);
@@ -218,6 +220,12 @@ export async function resendMembershipInvite(input: MembershipInviteActionInput)
     const { owner, membership } = await lockOwnedMembership(tx, target.membershipId, actorId);
     const invite = await lockInvite(tx, inviteId);
     if (invite.status !== "PENDING" && invite.status !== "EXPIRED") throw new MembershipError("INVITE_NOT_PENDING");
+    const latest = await tx.membershipInvite.findFirst({
+      where: { membershipId: membership.id },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: { id: true },
+    });
+    if (latest?.id !== invite.id) throw new MembershipError("INVITE_NOT_LATEST");
 
     await assertInvitable(tx, membership, now);
     return issueInvite(tx, { owner, membership, email: invite.email, now, ipHash, resentFromId: invite.id });

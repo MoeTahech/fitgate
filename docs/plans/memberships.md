@@ -222,8 +222,9 @@ There is no payment row. `trialEligibility(userId)` feeds the page.
   both set from `now`, decision 14).
 - The email goes out after commit.
 
-**`revokeMembershipInvite`** (owner or admin) and **`resendMembershipInvite`** (owner; also
-counts toward `membershipInvite`).
+**`revokeMembershipInvite`** (owner or admin) and **`resendMembershipInvite`** (owner; only
+the membership's most recent invite, otherwise `INVITE_NOT_LATEST`; also counts toward
+`membershipInvite`).
 
 **`acceptMembershipInvite`**, in one transaction:
 1. Lock the accepter, then the membership, then the invite.
