@@ -19,7 +19,9 @@ async function AccountDetails() {
         <dt className="text-zinc-500">Role</dt>
         <dd className="font-medium text-zinc-900 dark:text-zinc-100">{ROLE_LABELS[user.role]}</dd>
       </dl>
-      <SignOutButton className="mt-6 h-10 rounded-md border border-zinc-300 px-4 text-sm font-medium text-zinc-800 hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900" />
+      <div className="mt-6">
+        <SignOutButton />
+      </div>
     </div>
   );
 }

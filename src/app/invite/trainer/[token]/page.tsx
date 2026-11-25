@@ -76,7 +76,8 @@ async function InviteView({ params }: { params: PageProps<"/invite/trainer/[toke
       >
         <SignOutButton
           redirectTo={`/sign-in?next=${encodeURIComponent(returnTo)}`}
-          className="h-11 w-full rounded-md border border-zinc-300 px-4 font-medium dark:border-zinc-700"
+          size="lg"
+          fullWidth
         />
       </AuthCard>
     );

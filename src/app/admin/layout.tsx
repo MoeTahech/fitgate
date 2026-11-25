@@ -1,21 +1,10 @@
-import Link from "next/link";
-
-const LINKS = [
-  { href: "/admin/users", label: "Users" },
-  { href: "/admin/trainers", label: "Trainers" },
-] as const;
+import { AdminNav } from "@/components/layout/admin-nav";
 
 export default function AdminLayout({ children }: LayoutProps<"/admin">) {
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-8">
-      <nav aria-label="Admin" className="mb-6 flex gap-4 border-b border-zinc-200 pb-3 text-sm dark:border-zinc-800">
-        {LINKS.map((link) => (
-          <Link key={link.href} href={link.href} className="font-medium text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white">
-            {link.label}
-          </Link>
-        ))}
-      </nav>
-      {children}
+    <div className="mx-auto grid w-full max-w-5xl flex-1 gap-8 px-4 py-8 sm:py-10 md:grid-cols-[10rem_minmax(0,1fr)]">
+      <AdminNav />
+      <div className="min-w-0">{children}</div>
     </div>
   );
 }

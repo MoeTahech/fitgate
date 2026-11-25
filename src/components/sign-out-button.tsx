@@ -1,10 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ComponentProps } from "react";
+import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/client";
 import { signOutAndRedirect } from "@/lib/auth/navigation";
 
-export function SignOutButton({ className, redirectTo = "/sign-in" }: { className?: string; redirectTo?: string }) {
+type ButtonProps = ComponentProps<typeof Button>;
+
+export function SignOutButton({
+  redirectTo = "/sign-in",
+  variant = "outline",
+  size,
+  fullWidth = false,
+}: {
+  redirectTo?: string;
+  variant?: ButtonProps["variant"];
+  size?: ButtonProps["size"];
+  fullWidth?: boolean;
+}) {
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -18,15 +31,23 @@ export function SignOutButton({ className, redirectTo = "/sign-in" }: { classNam
   }
 
   return (
-    <>
-      <button type="button" onClick={signOut} disabled={pending} className={className}>
+    <div className={fullWidth ? "flex w-full flex-col gap-2" : "flex flex-col items-start gap-2"}>
+      <Button
+        type="button"
+        variant={variant}
+        size={size}
+        onClick={signOut}
+        disabled={pending}
+        aria-busy={pending || undefined}
+        className={fullWidth ? "w-full" : undefined}
+      >
         {pending ? "Signing out…" : "Sign out"}
-      </button>
+      </Button>
       {failed ? (
-        <p role="alert" className="mt-2 text-sm text-red-700 dark:text-red-400">
+        <p role="alert" className="text-sm text-destructive">
           Couldn&apos;t sign you out. Check your connection and try again.
         </p>
       ) : null}
-    </>
+    </div>
   );
 }

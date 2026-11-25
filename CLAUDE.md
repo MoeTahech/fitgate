@@ -148,6 +148,12 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   gets a typed tone/label map there), `ConfirmDialog` (destructive or irreversible actions);
   plus primitives `Button`/`buttonVariants` (links styled as buttons), `Card`, `Table`,
   `Skeleton` (Suspense fallbacks).
+- Layout (`src/components/layout/`): `nav.ts` holds the nav config (`MAIN_NAV` with role
+  filters, `ADMIN_NAV`; add new sections there) and link styles. `SiteHeader` (near-black bar,
+  user part behind `<Suspense>` via `getCurrentUser()`), `MobileNav` (Sheet below `md`, includes
+  admin sections for admins), `AdminNav` (sidebar from `md`, used by `src/app/admin/layout.tsx`;
+  admin pages render their own `<main>`). `NavLinks` reads `usePathname`, which suspends under
+  dynamic params: always wrap it in `<Suspense fallback={<NavLinksFallback …/>}>`.
 
 ## Conventions
 - Pages and feature components build only from the shared components and tokens: no raw
