@@ -161,6 +161,8 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   buttons, inputs, cards, badges, alerts or tables. Layout utilities (flex, grid, gap, margin,
   width, responsive visibility) are fine. If a pattern is missing, add it to `src/components/`
   first. Displayed dates go through `formatLocal`/`formatLocalTime`.
+  `tests/ui/no-raw-styles.test.ts` fails on palette colors, black/white, arbitrary colors or
+  `dark:` in `src/app` and `src/components` (`src/components/ui/` excluded).
 - Validate all external input with Zod.
 - Authorization is enforced on the server, never only in the UI.
 - Store times in UTC; convert to the gym's time zone (`GymSettings.timeZone`) only for
