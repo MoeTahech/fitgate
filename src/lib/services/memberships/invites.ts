@@ -454,9 +454,14 @@ export function membershipInviteUrl(token: string): string {
   return `${env.BETTER_AUTH_URL}/invite/membership/${token}`;
 }
 
-/** Sends the invite email after the transaction committed. Returns false if delivery failed. */
+/**
+ * Sends the invite email after the transaction committed. Never throws: returns false if delivery
+ * failed. If the gym settings can't be read, the expiry is shown in the default time zone.
+ */
 export async function sendMembershipInvite(invite: IssuedMembershipInvite): Promise<boolean> {
-  const settings = await db.gymSettings.findUnique({ where: { id: 1 }, select: { timeZone: true } });
+  const settings = await db.gymSettings
+    .findUnique({ where: { id: 1 }, select: { timeZone: true } })
+    .catch(() => null);
   try {
     await sendEmail({
       to: invite.email,

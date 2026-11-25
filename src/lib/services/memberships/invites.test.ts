@@ -52,6 +52,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 afterAll(async () => {
@@ -589,6 +590,19 @@ describe("findMembershipInviteByToken", () => {
     vi.setSystemTime(at(2 * HOUR));
 
     expect(await findMembershipInviteByToken(issued.token)).toEqual({ state: "ended" });
+  });
+});
+
+describe("sendMembershipInvite", () => {
+  it("still sends the email in the default time zone when the gym settings can't be read", async () => {
+    const { owner, membership } = await couples();
+    const email = partnerEmail();
+    const issued = await invite(owner, membership, email);
+    vi.spyOn(db.gymSettings, "findUnique").mockRejectedValueOnce(new Error("connection lost"));
+
+    expect(await sendMembershipInvite(issued)).toBe(true);
+    const [message] = await waitForMessages(email);
+    expect(await readMessageText(message.ID)).toContain("The invite expires on 9 December 2026 at 10:00.");
   });
 });
 
