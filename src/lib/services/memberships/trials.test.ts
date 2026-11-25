@@ -17,6 +17,8 @@ import {
   createUser,
 } from "../../../../tests/support/factories";
 import { expectMembershipError } from "../../../../tests/support/membership-errors";
+import { refundPayment } from "./corrections";
+import { createManualMembership } from "./manual";
 import { startTrial, trialEligibility, trialIpIdentifier, type StartTrialInput } from "./trials";
 
 const HOUR = 3_600_000;
@@ -227,6 +229,26 @@ describe("startTrial", () => {
 
     await expect(start(user, "GYM")).resolves.toMatchObject({ kind: "GYM" });
     await expect(start(user, "CLASS")).resolves.toMatchObject({ kind: "CLASS" });
+  });
+
+  it("doesn't count a membership cancelled by a full refund, but counts one with a partial refund", async () => {
+    await trialPlans();
+    const admin = await createUser({ role: "ADMIN" });
+    const correction = { actorId: admin.id, reason: "Recorded by mistake", ipHash: null };
+    const [refunded, partial] = [await createUser(), await createUser()];
+    for (const [user, amountCents] of [[refunded, 3000], [partial, 1000]] as const) {
+      const created = await createManualMembership({
+        actorId: admin.id,
+        userId: user.id,
+        planId: (await createPlan({ priceCents: 3000 })).id,
+        method: "CASH",
+      });
+      await refundPayment({ ...correction, paymentId: created.paymentId, amountCents });
+    }
+    vi.setSystemTime(at(35 * DAY));
+
+    await expect(start(refunded, "GYM")).resolves.toMatchObject({ kind: "GYM" });
+    await expectMembershipError(start(partial, "GYM", { ip: randomIp() }), "NOT_ELIGIBLE");
   });
 
   it("rejects a Gym Trial while an open base seat exists, and allows it once cleanup ends a lapsed one", async () => {

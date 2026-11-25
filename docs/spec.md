@@ -96,7 +96,8 @@ page (verified email required; verified phone optional later to limit abuse).
   paid membership with class access (`UNLIMITED` or `CREDITS`). So a past Day Pass,
   or a paid open-access membership without classes (e.g. Basic), blocks the Gym Trial
   but not the Class Trial. Memberships that were superseded or switched still count;
-  a membership cancelled because its activating payment was voided doesn't.
+  a membership cancelled because its activating payment was voided or fully refunded
+  doesn't. A partial refund still counts.
 - Each kind can be used once per account and once per email address (tracked by
   hash, so a new account with the same email can't repeat it).
 - When a trial ends, the app shows the active plans with a "join at the front desk"

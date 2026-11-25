@@ -137,7 +137,8 @@ export type PaidAccessHistory = { openAccess: boolean; classAccess: boolean };
 /**
  * Whether the person ever held a seat (open or ended, as owner or partner) on a paid membership
  * with open access, and on one with class access. Trials don't count, nor do manual memberships
- * whose payments were all voided.
+ * whose payments were all voided or fully refunded (both cancel like a void); a partial refund
+ * still counts.
  */
 export async function paidAccessHistory(tx: Tx, userId: string): Promise<PaidAccessHistory> {
   const seats = await tx.membershipMember.findMany({
@@ -145,7 +146,7 @@ export async function paidAccessHistory(tx: Tx, userId: string): Promise<PaidAcc
       userId,
       membership: {
         source: { not: "TRIAL" },
-        OR: [{ source: "STRIPE" }, { payments: { some: { status: { not: "VOIDED" } } } }],
+        OR: [{ source: "STRIPE" }, { payments: { some: { status: { notIn: ["VOIDED", "REFUNDED"] } } } }],
       },
     },
     select: { membership: { select: { plan: { select: { openAccess: true, classAccess: true } } } } },
