@@ -56,10 +56,7 @@ export function ResetPasswordForm() {
           {done ? "Your password has been changed and you've been signed out on all devices." : formError}
         </FormAlert>
         {done ? (
-          <Link
-            href="/sign-in"
-            className={buttonVariants({ size: "lg" })}
-          >
+          <Link href="/sign-in" className={buttonVariants({ size: "lg", className: "w-full" })}>
             Sign in
           </Link>
         ) : linkUnusable ? null : (

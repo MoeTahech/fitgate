@@ -28,10 +28,7 @@ export function VerifyEmailView() {
   if (!failed && session?.user.emailVerified) {
     return (
       <CenteredCard title="Email verified" description="Your email address is confirmed and you're signed in.">
-        <Link
-          href={next}
-          className={buttonVariants({ size: "lg" })}
-        >
+        <Link href={next} className={buttonVariants({ size: "lg", className: "w-full" })}>
           Continue
         </Link>
       </CenteredCard>
