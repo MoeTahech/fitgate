@@ -151,8 +151,9 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   `InlineStatus` (result line next to a row action; both are always-mounted live regions built
   on `LiveRegions`: in client components render them unconditionally and pass the message or
   nothing, and keep them at the same tree position when a success view replaces a form), `TextLink`, `Pagination`, `EmptyState`, `StatusBadge` (+ `MembershipStatusBadge`, `InviteStatusBadge`; each status enum
-  gets a typed tone/label map there), `ConfirmDialog` (destructive or irreversible actions; pass `finalFocus` when the action can
-  remove its own trigger, and show row-action results above the list, not in the row),
+  gets a typed tone/label map there), `ConfirmDialog` (destructive or irreversible actions; posts its own hidden form to `action`, or
+  submits an existing form via `form` (id); pass `finalFocus` when the action can remove its own
+  trigger, and show row-action results above the list, not in the row),
   `DataTable` (record lists: column config; a table when its container is at least `@2xl`
   wide, a stack of cards below; a `grow` column truncates in table mode with `title`, wraps in
   card mode); plus primitives `Button`/`buttonVariants` (links styled as buttons), `Card`,

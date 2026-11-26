@@ -16,7 +16,7 @@ export const metadata: Metadata = { title: "Users" };
 async function UsersTable({ searchParams }: { searchParams: PageProps<"/admin/users">["searchParams"] }) {
   const raw = await searchParams;
   const returnTo = `/admin/users${typeof raw.q === "string" && raw.q ? `?q=${encodeURIComponent(raw.q)}` : ""}`;
-  await requirePageUser(returnTo, "ADMIN");
+  const admin = await requirePageUser(returnTo, "ADMIN");
   const { users, total, page, pageCount, query } = await listUsers({ q: raw.q, page: raw.page });
 
   const pageHref = (target: number) => {
@@ -73,7 +73,9 @@ async function UsersTable({ searchParams }: { searchParams: PageProps<"/admin/us
               id: "role",
               header: "Role",
               align: "end",
-              cell: (user) => <RoleForm userId={user.id} userName={user.name} role={user.role} />,
+              cell: (user) => (
+                <RoleForm userId={user.id} userName={user.name} role={user.role} isSelf={user.id === admin.id} />
+              ),
             },
           ]}
         />

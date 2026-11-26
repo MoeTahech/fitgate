@@ -32,6 +32,22 @@ describe("ConfirmDialog", () => {
     expect(trigger?.attrs).not.toHaveProperty("aria-busy");
   });
 
+  it("renders no form of its own when it submits an existing form", () => {
+    const markup = renderMarkup(
+      <ConfirmDialog
+        triggerLabel="Save"
+        title="Remove your own admin access?"
+        description="You'll be signed out."
+        confirmLabel="Change my role"
+        form="role-form"
+      />,
+    );
+    expect(find(markup, byTag("form"))).toBeUndefined();
+    const trigger = find(markup, byTag("button"));
+    expect(trigger && textOf(trigger)).toBe("Save");
+    expect(trigger?.attrs.type).toBe("button");
+  });
+
   it("disables the trigger and marks it busy while pending", () => {
     const trigger = find(render({ pending: true }), byTag("button"));
     expect(trigger && textOf(trigger)).toBe("Revoking…");
