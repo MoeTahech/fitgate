@@ -335,3 +335,13 @@ for your OK or changes before step 13.
 Stripe; an admin ending memberships early (other than a switch); ending a started freeze; freeze
 decision emails; admin-created walk-in accounts; credit adjustments; refactoring the trainers
 page onto `ActionResults`.
+
+**Membership usage limits** (one follow-up PR after this one; recorded in `docs/spec.md` as
+Planned, not implemented here):
+- **Partner cooldown:** after a Couples partner seat ends (removed or left), a new partner can
+  join only after `PARTNER_CHANGE_COOLDOWN_DAYS = 15` days (a fixed constant, not per plan
+  length). The invite form shows the date. Admins can still remove partners at any time. Only
+  the membership waits, not the person who left.
+- **Freeze cap:** at most `MAX_FREEZE_DAYS_PER_YEAR = 60` freeze days per membership over the
+  last 12 months. Approved and completed freezes count; cancelled, rejected, and lapsed ones
+  don't. Each freeze is still 1–30 days. The freeze form shows the days left.

@@ -189,6 +189,19 @@ Stripe webhooks.
 - The owner or an admin can cancel a freeze before it starts; cancelling an approved
   one undoes the shift. A freeze that has started can't be ended early.
 
+### Membership usage limits (Planned)
+Not built yet. One follow-up PR after the pages PR ("membership usage limits") adds two
+limits. The constants are fixed, not per plan length.
+- **Partner cooldown.** After a Couples partner seat ends (the partner left or the owner
+  removed them), a new partner can join only after `PARTNER_CHANGE_COOLDOWN_DAYS = 15`
+  days. The invite form shows the date from which a partner can be invited. Admins can
+  still remove a partner at any time. Only the membership waits, not the person who
+  left: they can join any other membership right away.
+- **Freeze cap.** At most `MAX_FREEZE_DAYS_PER_YEAR = 60` freeze days per membership over
+  the last 12 months. Approved and completed freezes count; cancelled, rejected, and
+  lapsed requests don't. Each freeze still lasts 1 to 30 days. The freeze request form
+  shows how many freeze days are left.
+
 ### Manual payments
 Admins can record payments made outside Stripe.
 - Methods: `CASH`, `WHISH`, `OMT`, `BANK_TRANSFER`, `OTHER`, with an optional
@@ -376,6 +389,8 @@ indexes live as raw SQL in the migrations.
         `docs/plans/ui-foundation.md`). Done.
      3. Pages PR: member membership page, admin members, memberships, and
         payments pages.
+     4. Membership usage limits (Planned): partner cooldown and yearly freeze cap
+        (see Membership usage limits). One follow-up PR after the pages PR.
    - **2b — Stripe:** Checkout, subscriptions (incl. multi-month plans and promo
      codes), webhooks, Stripe-driven membership status, Stripe purchase of
      couples plans, Stripe membership freezes (pause in Stripe).
