@@ -63,3 +63,56 @@ describe("requireRole", () => {
     expect(await errorCode(requireRole("ADMIN"))).toBe("FORBIDDEN");
   });
 });
+
+async function thrownDigest(promise: Promise<unknown>): Promise<string> {
+  const error = await promise.then(
+    () => null,
+    (reason: unknown) => reason,
+  );
+  expect(error).toBeInstanceOf(Error);
+  const digest = (error as Error & { digest?: unknown }).digest;
+  expect(typeof digest).toBe("string");
+  return digest as string;
+}
+
+function redirectTarget(digest: string): string {
+  const [code, , url] = digest.split(";");
+  expect(code).toBe("NEXT_REDIRECT");
+  return url;
+}
+
+const NOT_FOUND_DIGEST = "NEXT_HTTP_ERROR_FALLBACK;404";
+
+describe("requirePageUser", () => {
+  it("returns any signed-in user when no role is required", async () => {
+    const user = userWith("MEMBER");
+    await expect(guardsFor(user).requirePageUser("/account")).resolves.toEqual(user);
+  });
+
+  it("returns the user when the role matches", async () => {
+    const user = userWith("ADMIN");
+    await expect(guardsFor(user).requirePageUser("/admin/members", "ADMIN")).resolves.toEqual(user);
+  });
+
+  it("redirects a signed-out visitor to sign-in with the return path", async () => {
+    const digest = await thrownDigest(guardsFor(null).requirePageUser("/admin/members?q=ann", "ADMIN"));
+    expect(redirectTarget(digest)).toBe(`/sign-in?next=${encodeURIComponent("/admin/members?q=ann")}`);
+  });
+
+  it("drops an unsafe return path", async () => {
+    const digest = await thrownDigest(guardsFor(null).requirePageUser("//evil.example/x"));
+    expect(redirectTarget(digest)).toBe(`/sign-in?next=${encodeURIComponent("/")}`);
+  });
+
+  it.each(["MEMBER", "TRAINER"] as const)("404s for %s on an admin page", async (role) => {
+    expect(await thrownDigest(guardsFor(userWith(role)).requirePageUser("/admin/members", "ADMIN"))).toBe(NOT_FOUND_DIGEST);
+  });
+
+  it("rethrows errors that are not auth errors", async () => {
+    const failure = new Error("database down");
+    const { requirePageUser } = createGuards(async () => {
+      throw failure;
+    });
+    await expect(requirePageUser("/account")).rejects.toBe(failure);
+  });
+});

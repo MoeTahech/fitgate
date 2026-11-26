@@ -234,7 +234,9 @@ for your OK or changes before step 13.
   - `Pagination` that keeps the filters.
 - `src/app/admin/memberships/actions.ts`: `extendMembershipAction`, `voidPaymentAction`,
   `refundPaymentAction`, `approveFreezeAction`, `rejectFreezeAction`, `cancelFreezeAction`,
-  `adminRemovePartnerAction`, `adminRevokeInviteAction`.
+  `adminRemovePartnerAction`, `adminRevokeInviteAction`. `refundPaymentAction` parses the
+  amount with `refundFormSchema(currency)` using the payment's currency looked up on the server,
+  never a form field.
 - `npx next typegen` after adding the routes.
 - Tests (`actions.test.ts`). These build the FormData exactly as the dialog fields name their
   controls, so they cover parsing the dialog fields:
@@ -273,8 +275,8 @@ for your OK or changes before step 13.
 0. `git switch -c feat/memberships-ui`.
 1. `docs: add memberships UI plan`: this file as `docs/plans/memberships-ui.md`. Before any
    code, read the bundled docs: `02-guides/forms.md`, `02-guides/server-actions.md`,
-   `02-guides/authentication-with-cache-components.md`, `04-functions/refresh.md`, and
-   `04-functions/io.md` (under `node_modules/next/dist/docs/01-app/`).
+   `02-guides/authentication-with-cache-components.md`, `03-api-reference/04-functions/refresh.md`,
+   and `03-api-reference/04-functions/io.md` (under `node_modules/next/dist/docs/01-app/`).
 2. `feat: add freeze and payment badges, detail list, textarea, and nav items`: status maps,
    `DetailList`, textarea + `TextareaField`, nav `exact` and the new nav items, with
    markup/unit tests.

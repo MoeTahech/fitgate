@@ -4,6 +4,11 @@ import type { LocalDate } from "@/lib/time";
 export const FREE_TEXT_MAX_LENGTH = 500;
 export const REFERENCE_MAX_LENGTH = 100;
 
+/** A freeze covers 1 to this many whole local days. */
+export const MAX_FREEZE_DAYS = 30;
+/** The first day of a freeze is at least this many local days after today. */
+export const FREEZE_LEAD_DAYS = 2;
+
 export const MANUAL_PAYMENT_METHODS = ["CASH", "WHISH", "OMT", "BANK_TRANSFER", "OTHER"] as const;
 export type ManualPaymentMethod = (typeof MANUAL_PAYMENT_METHODS)[number];
 

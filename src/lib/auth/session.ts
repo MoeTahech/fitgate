@@ -1,11 +1,9 @@
 import "server-only";
 import { cacheLife, io } from "next/cache";
 import { headers } from "next/headers";
-import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { ROLES, type AppRole } from "./constants";
-import { AuthError, createGuards, type SessionUser } from "./guards";
-import { safeRedirectPath } from "./redirect";
+import { createGuards, type SessionUser } from "./guards";
 import { auth } from "./server";
 
 export { AuthError, isAuthError, type SessionUser } from "./guards";
@@ -30,23 +28,11 @@ const readSessionUser = cache(async (): Promise<SessionUser | null> => {
 /** Uncached session read that returns null when signed out; safe for authorization decisions. */
 export const getSessionUser = readSessionUser;
 
-/** For server actions, route handlers, and data access. Throws `AuthError`. */
-export const { requireUser, requireRole } = createGuards(readSessionUser);
-
-/** For pages: redirects to sign-in when signed out, 404s on a missing role. */
-export async function requirePageUser(returnTo: string, ...roles: AppRole[]): Promise<SessionUser> {
-  try {
-    return roles.length > 0 ? await requireRole(...(roles as [AppRole, ...AppRole[]])) : await requireUser();
-  } catch (error) {
-    if (error instanceof AuthError) {
-      if (error.code === "UNAUTHENTICATED") {
-        redirect(`/sign-in?next=${encodeURIComponent(safeRedirectPath(returnTo))}`);
-      }
-      notFound();
-    }
-    throw error;
-  }
-}
+/**
+ * `requireUser`/`requireRole` for server actions, route handlers, and data access (throw
+ * `AuthError`); `requirePageUser` for pages (sign-in redirect when signed out, 404 on a missing role).
+ */
+export const { requireUser, requireRole, requirePageUser } = createGuards(readSessionUser);
 
 /**
  * Display only (headers, navigation). Browser-cached for a few minutes, so never use it for

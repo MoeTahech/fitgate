@@ -1,4 +1,6 @@
+import { notFound, redirect } from "next/navigation";
 import type { AppRole } from "./constants";
+import { safeRedirectPath } from "./redirect";
 
 export type SessionUser = {
   id: string;
@@ -38,5 +40,20 @@ export function createGuards(getSessionUser: SessionSource) {
     return user;
   }
 
-  return { requireUser, requireRole };
+  /** For pages: redirects to sign-in when signed out, 404s on a missing role. */
+  async function requirePageUser(returnTo: string, ...roles: AppRole[]): Promise<SessionUser> {
+    try {
+      return roles.length > 0 ? await requireRole(...(roles as [AppRole, ...AppRole[]])) : await requireUser();
+    } catch (error) {
+      if (error instanceof AuthError) {
+        if (error.code === "UNAUTHENTICATED") {
+          redirect(`/sign-in?next=${encodeURIComponent(safeRedirectPath(returnTo))}`);
+        }
+        notFound();
+      }
+      throw error;
+    }
+  }
+
+  return { requireUser, requireRole, requirePageUser };
 }
