@@ -1,13 +1,31 @@
 "use client";
 
 import { MenuIcon } from "lucide-react";
-import { Suspense, useLayoutEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { Suspense, useEffect, useEffectEvent, useRef, useState } from "react";
 import { SignOutButton } from "@/components/sign-out-button";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import type { NavItem } from "./nav";
 import { NavLinks } from "./nav-links";
 import { NavLinksFallback } from "./nav-links-fallback";
+
+/**
+ * Calls `onChange` when the pathname changes after mount, including navigations the menu's own
+ * links don't see (browser back/forward). `usePathname` suspends under dynamic params, so render
+ * inside `<Suspense>`.
+ */
+function OnPathnameChange({ onChange }: { onChange: () => void }) {
+  const pathname = usePathname();
+  const previous = useRef(pathname);
+  const notify = useEffectEvent(onChange);
+  useEffect(() => {
+    if (previous.current === pathname) return;
+    previous.current = pathname;
+    notify();
+  }, [pathname]);
+  return null;
+}
 
 /** Menu for small screens: main links, admin sections for admins, and sign out. */
 export function MobileNav({
@@ -22,14 +40,15 @@ export function MobileNav({
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
 
-  useLayoutEffect(() => () => setOpen(false), []);
-
   return (
     <Sheet open={open} onOpenChange={setOpen}>
+      <Suspense fallback={null}>
+        <OnPathnameChange onChange={close} />
+      </Suspense>
       <SheetTrigger render={<Button variant="header" size="icon" aria-label="Open menu" />}>
         <MenuIcon aria-hidden />
       </SheetTrigger>
-      <SheetContent side="right" className="w-72">
+      <SheetContent side="right" className="data-[side=right]:w-72">
         <SheetHeader className="border-b">
           <SheetTitle>Menu</SheetTitle>
           <SheetDescription>Signed in as {userName}</SheetDescription>
