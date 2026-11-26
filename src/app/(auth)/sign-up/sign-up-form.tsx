@@ -1,13 +1,17 @@
 "use client";
 
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { AuthCard, Field, FormAlert, SubmitButton } from "@/components/ui/form";
+import { CenteredCard } from "@/components/centered-card";
+import { FormAlert } from "@/components/form-alert";
+import { InputField } from "@/components/form-field";
+import { SubmitButton } from "@/components/submit-button";
+import { TextLink } from "@/components/text-link";
 import { authClient } from "@/lib/auth/client";
 import { describeAuthError } from "@/lib/auth/client-errors";
 import { safeRedirectPath, verificationCallbackURL } from "@/lib/auth/redirect";
 import { fieldErrors, PASSWORD_MIN_LENGTH, signUpSchema } from "@/lib/auth/schemas";
+import { showFieldErrors } from "@/lib/forms/field-errors";
 import { ResendVerification } from "../resend-verification";
 
 export function SignUpForm() {
@@ -22,7 +26,7 @@ export function SignUpForm() {
     setFormError(null);
     const parsed = signUpSchema.safeParse(Object.fromEntries(new FormData(event.currentTarget)));
     if (!parsed.success) {
-      setErrors(fieldErrors(parsed.error));
+      showFieldErrors(event.currentTarget, fieldErrors(parsed.error), setErrors);
       return;
     }
     setErrors({});
@@ -38,39 +42,40 @@ export function SignUpForm() {
 
   if (submittedEmail) {
     return (
-      <AuthCard
+      <CenteredCard
         title="Check your email"
+        focusTitle
         description={
           <>
-            We sent a message to <span className="font-medium text-zinc-900 dark:text-zinc-100">{submittedEmail}</span>.
+            We sent a message to <span className="font-medium text-foreground">{submittedEmail}</span>.
             Follow the link in it to continue. The link expires in 1 hour.
           </>
         }
-        footer={<Link href={`/sign-in?next=${encodeURIComponent(next)}`} className="font-medium underline">Back to sign in</Link>}
+        footer={<TextLink href={`/sign-in?next=${encodeURIComponent(next)}`}>Back to sign in</TextLink>}
       >
         <ResendVerification email={submittedEmail} callbackURL={verificationCallbackURL(next)} />
-      </AuthCard>
+      </CenteredCard>
     );
   }
 
   return (
-    <AuthCard
+    <CenteredCard
       title="Create your account"
       description="Join FitGate to manage your membership and book classes."
       footer={
         <>
           Already have an account?{" "}
-          <Link href={`/sign-in?next=${encodeURIComponent(next)}`} className="font-medium text-zinc-900 underline dark:text-zinc-100">
+          <TextLink href={`/sign-in?next=${encodeURIComponent(next)}`}>
             Sign in
-          </Link>
+          </TextLink>
         </>
       }
     >
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
-        {formError ? <FormAlert tone="error">{formError}</FormAlert> : null}
-        <Field id="name" name="name" label="Name" autoComplete="name" required error={errors.name} />
-        <Field id="email" name="email" type="email" label="Email" autoComplete="email" required error={errors.email} />
-        <Field
+        <FormAlert tone="error">{formError}</FormAlert>
+        <InputField id="name" name="name" label="Name" autoComplete="name" required error={errors.name} />
+        <InputField id="email" name="email" type="email" label="Email" autoComplete="email" required error={errors.email} />
+        <InputField
           id="password"
           name="password"
           type="password"
@@ -81,8 +86,8 @@ export function SignUpForm() {
           hint={`At least ${PASSWORD_MIN_LENGTH} characters.`}
           error={errors.password}
         />
-        <SubmitButton pending={pending}>{pending ? "Creating account…" : "Create account"}</SubmitButton>
+        <SubmitButton pending={pending} size="lg">{pending ? "Creating account…" : "Create account"}</SubmitButton>
       </form>
-    </AuthCard>
+    </CenteredCard>
   );
 }

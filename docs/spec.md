@@ -371,8 +371,9 @@ indexes live as raw SQL in the migrations.
    - **2a — Memberships and manual payments** (current milestone; plan in
      `docs/plans/memberships.md`), in this order:
      1. Backend PR: schema, membership services (manual payments, corrections,
-        freezes, free trials, couples invites), tests.
-     2. **UI foundation:** design tokens, shared components, layout.
+        freezes, free trials, couples invites), tests. Done (PR #4).
+     2. **UI foundation:** design tokens, shared components, layout (plan in
+        `docs/plans/ui-foundation.md`). Done.
      3. Pages PR: member membership page, admin members, memberships, and
         payments pages.
    - **2b — Stripe:** Checkout, subscriptions (incl. multi-month plans and promo

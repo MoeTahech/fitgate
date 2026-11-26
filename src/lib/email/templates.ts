@@ -111,11 +111,7 @@ export function alreadyRegisteredEmail(input: { name?: string; resetUrl: string 
 }
 
 export function trainerInviteEmail(input: { url: string; expiresAt: Date; timeZone: string }): EmailContent {
-  const expires = new Intl.DateTimeFormat("en-GB", {
-    dateStyle: "long",
-    timeStyle: "short",
-    timeZone: input.timeZone,
-  }).format(input.expiresAt);
+  const expires = formatLocal(input.expiresAt, input.timeZone, { dateStyle: "long", timeStyle: "short" });
 
   return render({
     subject: `You're invited to join ${APP_NAME} as a trainer`,

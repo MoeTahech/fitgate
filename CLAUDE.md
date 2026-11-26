@@ -31,11 +31,18 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   (its scripts use an Upstash-only flag that local Redis rejects).
 - Email via nodemailer: Mailpit locally (`EMAIL_TRANSPORT=smtp`) or `console`;
   production provider not chosen yet.
+- UI: shadcn/ui (`base-nova` style, `components.json`) on Base UI (`@base-ui/react`),
+  `class-variance-authority`, `lucide-react` icons, `tw-animate-css`. Class merging via
+  `cn` from `@/lib/utils` (re-exports the `cn` package; never import `cn` directly). The
+  shadcn CLI only via `npx shadcn@4.23.0`, not installed; the state variants its
+  `tailwind.css` would add are copied into `globals.css`.
 - Planned, not installed yet: Stripe (test mode only).
 
 ## Commands
 - `npm run dev` / `npm run build` / `npm run start`
 - `npm run lint` (ESLint 9 flat config in `eslint.config.mjs`)
+- `npx shadcn@4.23.0 add <item>` add a UI primitive to `src/components/ui/`; then switch
+  its `cn` import to `@/lib/utils` and adjust it to our tokens.
 - `npx tsc --noEmit` type check. Route types (`PageProps`, `LayoutProps`) are
   generated: after adding or renaming routes run `npx next typegen` first.
 - `docker compose up -d` start local services (Postgres, Redis + SRH REST proxy
@@ -55,8 +62,12 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   import server code run with `tsx --conditions=react-server --env-file-if-exists=.env`.
 
 ## Testing
-- Vitest, config in `vitest.config.mts`. Tests are colocated as `src/**/*.test.ts`;
+- Vitest, config in `vitest.config.mts`. Tests are colocated as `src/**/*.test.ts(x)`;
   shared setup and helpers live in `tests/`.
+- Component tests (`.test.tsx`, Node environment, no DOM) render with `renderMarkup` from
+  `tests/support/markup.ts` (`renderToStaticMarkup` + a small parser) and assert structure and
+  attributes with `find`/`findAll`/`byTag`/`byAttr`/`textOf`/`classesOf`. Behaviour that needs
+  a browser (focus, events) is checked by hand.
 - Global setup runs `prisma migrate deploy` against `TEST_DATABASE_URL` (creating
   the database if missing); workers get it as `DATABASE_URL`. Test files run
   sequentially and all tables are truncated before each file.
@@ -129,9 +140,44 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   `localMinutes`, `localElapsedMs`, `formatLocal`, `formatLocalTime`). New code does no ad-hoc offset
   arithmetic and builds no own `Intl.DateTimeFormat`. DST gaps resolve forward, overlaps
   to the earlier instant.
+- UI: design tokens in `src/app/globals.css` (`:root` light, shipped; `.dark` defined, applied
+  only under a `.dark` class that nothing sets yet). Brand orange is only `primary`, `link`,
+  `ring`, `header-active`; statuses use the `status-*` tokens, feedback `success`/`warning`/
+  `info`/`destructive` (+ `-subtle`). `tests/ui/theme-contrast.test.ts` checks every token pair
+  for WCAG AA; add new pairs there. `src/components/ui/` holds the shadcn primitives (edit
+  freely). `src/components/` holds the app components pages use: `PageContainer`,
+  `PageHeader`/`SectionHeader`, `CenteredPage`/`CenteredCard` (auth and invite pages; pass
+  `focusTitle` on a success view that replaces a form so focus moves to its heading),
+  `FormField`/`InputField`/`SelectField`, `SubmitButton`, `FormAlert` (form-level messages),
+  `InlineStatus` (result line next to a row action; both are always-mounted live regions built
+  on `LiveRegions`: in client components render them unconditionally and pass the message or
+  nothing, and keep them at the same tree position when a success view replaces a form), `TextLink`, `Pagination`, `EmptyState`, `StatusBadge` (+ `MembershipStatusBadge`, `InviteStatusBadge`; each status enum
+  gets a typed tone/label map there), `ConfirmDialog` (destructive or irreversible actions; posts its own hidden form to `action`, or
+  submits an existing form via `form` (id); pass `finalFocus` when the action can remove its own
+  trigger, and show row-action results above the list, not in the row),
+  `DataTable` (record lists: column config; a table when its container is at least `@2xl`
+  wide, a stack of cards below; a `grow` column truncates in table mode with `title`, wraps in
+  card mode); plus primitives `Button`/`buttonVariants` (links styled as buttons), `Card`,
+  `Skeleton` (Suspense fallbacks).
+- Layout (`src/components/layout/`): `nav.ts` holds the nav config (`MAIN_NAV` with role
+  filters, `ADMIN_NAV`; add new sections there) and link styles. `SiteHeader` (near-black bar,
+  user part behind `<Suspense>` via `getCurrentUser()`), `MobileNav` (Sheet below `md`, includes
+  admin sections for admins), `AdminNav` (sidebar from `md`, used by `src/app/admin/layout.tsx`;
+  admin pages render their own `<main>`). `NavLinks` reads `usePathname`, which suspends under
+  dynamic params: always wrap it in `<Suspense fallback={<NavLinksFallback …/>}>`.
 
 ## Conventions
-- Validate all external input with Zod.
+- Pages and feature components build only from the shared components and tokens: no raw
+  Tailwind palette classes (`zinc-`, `red-`, …), no `dark:` utilities, no one-off styling of
+  buttons, inputs, cards, badges, alerts or tables. Layout utilities (flex, grid, gap, margin,
+  width, responsive visibility) are fine. If a pattern is missing, add it to `src/components/`
+  first. Displayed dates go through `formatLocal`/`formatLocalTime`. Record lists use
+  `DataTable`, never the `Table` primitive directly in pages.
+  `tests/ui/no-raw-styles.test.ts` fails on palette colors, black/white, arbitrary colors,
+  `dark:` or a `ui/table` import in `src/app` and `src/components` (`src/components/ui/` excluded).
+- Validate all external input with Zod. Client forms show Zod field errors with
+  `showFieldErrors(form, errors, setErrors)` from `src/lib/forms/field-errors.ts` (flushes the
+  errors, then focuses the first invalid field so its error is read out).
 - Authorization is enforced on the server, never only in the UI.
 - Store times in UTC; convert to the gym's time zone (`GymSettings.timeZone`) only for
   display and for local-calendar math (periods, opening hours), via `src/lib/time.ts`.

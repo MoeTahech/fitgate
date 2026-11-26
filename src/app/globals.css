@@ -1,26 +1,255 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* State variants used by the shadcn/ui primitives, from shadcn@4.23.0 dist/tailwind.css. */
+@custom-variant data-open {
+  &:where([data-state="open"]),
+  &:where([data-open]:not([data-open="false"])) {
+    @slot;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@custom-variant data-closed {
+  &:where([data-state="closed"]),
+  &:where([data-closed]:not([data-closed="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-checked {
+  &:where([data-state="checked"]),
+  &:where([data-checked]:not([data-checked="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-unchecked {
+  &:where([data-state="unchecked"]),
+  &:where([data-unchecked]:not([data-unchecked="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-selected {
+  &:where([data-selected="true"]) {
+    @slot;
+  }
+}
+
+@custom-variant data-disabled {
+  &:where([data-disabled="true"]),
+  &:where([data-disabled]:not([data-disabled="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-active {
+  &:where([data-state="active"]),
+  &:where([data-active]:not([data-active="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-horizontal {
+  &:where([data-orientation="horizontal"]) {
+    @slot;
+  }
+}
+
+@custom-variant data-vertical {
+  &:where([data-orientation="vertical"]) {
+    @slot;
+  }
+}
+
+/* Dark tokens apply under a `.dark` ancestor only; nothing sets it yet, so light ships. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens. Every text/background pair and every focus/input boundary is checked for
+ * WCAG AA contrast by tests/ui/theme-contrast.test.ts; keep values as 6-digit hex.
+ * Brand orange is only primary, link, ring and header-active. Status colors stay separate.
+ */
+:root {
+  --radius: 0.5rem;
+
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --card: #ffffff;
+  --card-foreground: #0a0a0a;
+  --popover: #ffffff;
+  --popover-foreground: #0a0a0a;
+
+  --primary: #f97316;
+  --primary-foreground: #0a0a0a;
+  --primary-hover: #ea580c;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #0a0a0a;
+  --muted: #f5f5f5;
+  --muted-foreground: #525252;
+  --accent: #f5f5f5;
+  --accent-foreground: #0a0a0a;
+  --link: #c2410c;
+  --link-hover: #9a3412;
+
+  --destructive: #b91c1c;
+  --destructive-foreground: #ffffff;
+  --destructive-subtle: #fef2f2;
+  --success: #166534;
+  --success-subtle: #f0fdf4;
+  --warning: #854d0e;
+  --warning-subtle: #fefce8;
+  --info: #1e40af;
+  --info-subtle: #eff6ff;
+
+  --border: #e5e5e5;
+  --input: #737373;
+  --ring: #ea580c;
+
+  --header: #0a0a0a;
+  --header-foreground: #ffffff;
+  --header-muted: #a3a3a3;
+  --header-active: #fb923c;
+  --header-border: #262626;
+
+  --status-active: #dcfce7;
+  --status-active-foreground: #166534;
+  --status-frozen: #e0f2fe;
+  --status-frozen-foreground: #075985;
+  --status-past-due: #fee2e2;
+  --status-past-due-foreground: #991b1b;
+  --status-expired: #f5f5f5;
+  --status-expired-foreground: #404040;
+  --status-cancelled: #ede9fe;
+  --status-cancelled-foreground: #5b21b6;
+  --status-pending: #fef9c3;
+  --status-pending-foreground: #854d0e;
+}
+
+.dark {
+  --background: #0a0a0a;
+  --foreground: #fafafa;
+  --card: #171717;
+  --card-foreground: #fafafa;
+  --popover: #171717;
+  --popover-foreground: #fafafa;
+
+  --primary: #fb923c;
+  --primary-foreground: #0a0a0a;
+  --primary-hover: #f97316;
+  --secondary: #262626;
+  --secondary-foreground: #fafafa;
+  --muted: #262626;
+  --muted-foreground: #a3a3a3;
+  --accent: #262626;
+  --accent-foreground: #fafafa;
+  --link: #fb923c;
+  --link-hover: #fdba74;
+
+  --destructive: #f87171;
+  --destructive-foreground: #0a0a0a;
+  --destructive-subtle: #450a0a;
+  --success: #86efac;
+  --success-subtle: #052e16;
+  --warning: #fde047;
+  --warning-subtle: #422006;
+  --info: #93c5fd;
+  --info-subtle: #172554;
+
+  --border: #262626;
+  --input: #8a8a8a;
+  --ring: #f97316;
+
+  --header: #000000;
+  --header-foreground: #ffffff;
+  --header-muted: #a3a3a3;
+  --header-active: #fb923c;
+  --header-border: #262626;
+
+  --status-active: #052e16;
+  --status-active-foreground: #86efac;
+  --status-frozen: #082f49;
+  --status-frozen-foreground: #7dd3fc;
+  --status-past-due: #450a0a;
+  --status-past-due-foreground: #fca5a5;
+  --status-expired: #262626;
+  --status-expired-foreground: #d4d4d4;
+  --status-cancelled: #2e1065;
+  --status-cancelled-foreground: #c4b5fd;
+  --status-pending: #422006;
+  --status-pending-foreground: #fde047;
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-link: var(--link);
+  --color-link-hover: var(--link-hover);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-subtle: var(--destructive-subtle);
+  --color-success: var(--success);
+  --color-success-subtle: var(--success-subtle);
+  --color-warning: var(--warning);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-info: var(--info);
+  --color-info-subtle: var(--info-subtle);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-header: var(--header);
+  --color-header-foreground: var(--header-foreground);
+  --color-header-muted: var(--header-muted);
+  --color-header-active: var(--header-active);
+  --color-header-border: var(--header-border);
+  --color-status-active: var(--status-active);
+  --color-status-active-foreground: var(--status-active-foreground);
+  --color-status-frozen: var(--status-frozen);
+  --color-status-frozen-foreground: var(--status-frozen-foreground);
+  --color-status-past-due: var(--status-past-due);
+  --color-status-past-due-foreground: var(--status-past-due-foreground);
+  --color-status-expired: var(--status-expired);
+  --color-status-expired-foreground: var(--status-expired-foreground);
+  --color-status-cancelled: var(--status-cancelled);
+  --color-status-cancelled-foreground: var(--status-cancelled-foreground);
+  --color-status-pending: var(--status-pending);
+  --color-status-pending-foreground: var(--status-pending-foreground);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2;
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground;
+  }
 }

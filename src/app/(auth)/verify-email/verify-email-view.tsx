@@ -3,11 +3,17 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { AuthCard, Field, FormAlert, SubmitButton } from "@/components/ui/form";
+import { CenteredCard } from "@/components/centered-card";
+import { FormAlert } from "@/components/form-alert";
+import { InputField } from "@/components/form-field";
+import { SubmitButton } from "@/components/submit-button";
+import { TextLink } from "@/components/text-link";
+import { buttonVariants } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/client";
 import { describeAuthError } from "@/lib/auth/client-errors";
 import { safeRedirectPath, verificationCallbackURL } from "@/lib/auth/redirect";
 import { emailOnlySchema, fieldErrors } from "@/lib/auth/schemas";
+import { showFieldErrors } from "@/lib/forms/field-errors";
 
 export function VerifyEmailView() {
   const params = useSearchParams();
@@ -16,19 +22,16 @@ export function VerifyEmailView() {
   const { data: session, isPending } = authClient.useSession();
 
   if (!failed && isPending) {
-    return <AuthCard title="Checking your email…">{null}</AuthCard>;
+    return <CenteredCard title="Checking your email…">{null}</CenteredCard>;
   }
 
   if (!failed && session?.user.emailVerified) {
     return (
-      <AuthCard title="Email verified" description="Your email address is confirmed and you're signed in.">
-        <Link
-          href={next}
-          className="flex h-11 items-center justify-center rounded-md bg-zinc-900 px-4 font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-        >
+      <CenteredCard title="Email verified" description="Your email address is confirmed and you're signed in.">
+        <Link href={next} className={buttonVariants({ size: "lg", className: "w-full" })}>
           Continue
         </Link>
-      </AuthCard>
+      </CenteredCard>
     );
   }
 
@@ -45,7 +48,7 @@ function ResendForm({ next, failed }: { next: string; failed: boolean }) {
     setStatus(null);
     const parsed = emailOnlySchema.safeParse(Object.fromEntries(new FormData(event.currentTarget)));
     if (!parsed.success) {
-      setError(fieldErrors(parsed.error).email);
+      showFieldErrors(event.currentTarget, fieldErrors(parsed.error), (errors) => setError(errors.email));
       return;
     }
     setError(undefined);
@@ -63,20 +66,20 @@ function ResendForm({ next, failed }: { next: string; failed: boolean }) {
   }
 
   return (
-    <AuthCard
+    <CenteredCard
       title={failed ? "This link has expired" : "Verify your email"}
       description={
         failed
           ? "The verification link is invalid or has expired. Enter your email to get a new one."
           : "Follow the link we emailed you. Didn't get it? Enter your email to send a new one."
       }
-      footer={<Link href={`/sign-in?next=${encodeURIComponent(next)}`} className="font-medium underline">Back to sign in</Link>}
+      footer={<TextLink href={`/sign-in?next=${encodeURIComponent(next)}`}>Back to sign in</TextLink>}
     >
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
-        {status ? <FormAlert tone={status.tone}>{status.message}</FormAlert> : null}
-        <Field id="email" name="email" type="email" label="Email" autoComplete="email" required error={error} />
-        <SubmitButton pending={pending}>{pending ? "Sending…" : "Send verification link"}</SubmitButton>
+        <FormAlert tone={status?.tone ?? "success"}>{status?.message}</FormAlert>
+        <InputField id="email" name="email" type="email" label="Email" autoComplete="email" required error={error} />
+        <SubmitButton pending={pending} size="lg">{pending ? "Sending…" : "Send verification link"}</SubmitButton>
       </form>
-    </AuthCard>
+    </CenteredCard>
   );
 }

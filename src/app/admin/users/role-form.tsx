@@ -1,51 +1,79 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
-import { ROLES, type AppRole } from "@/lib/auth/constants";
+import { useActionState, useEffect, useId, useState, type FormEvent } from "react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { InlineStatus } from "@/components/inline-status";
+import { SubmitButton } from "@/components/submit-button";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { ROLE_LABELS, ROLES, type AppRole } from "@/lib/auth/constants";
 import { hardNavigate } from "@/lib/auth/navigation";
 import { changeRoleAction, type RoleFormState } from "./actions";
+import { needsSelfDemotionConfirm, parseRole } from "./role-confirm";
 
-const LABELS: Record<AppRole, string> = { MEMBER: "Member", TRAINER: "Trainer", ADMIN: "Admin" };
-
-export function RoleForm({ userId, userName, role }: { userId: string; userName: string; role: AppRole }) {
+export function RoleForm({
+  userId,
+  userName,
+  role,
+  isSelf,
+}: {
+  userId: string;
+  userName: string;
+  role: AppRole;
+  isSelf: boolean;
+}) {
+  const formId = useId();
   const [state, action, pending] = useActionState<RoleFormState, FormData>(changeRoleAction, { status: "idle" });
+  const [selected, setSelected] = useState<AppRole>(role);
 
   useEffect(() => {
     if (state.status === "signed-out") hardNavigate("/sign-in");
   }, [state.status]);
 
+  function syncAfterReset(event: FormEvent<HTMLFormElement>) {
+    const select = event.currentTarget.elements.namedItem("role");
+    // The reset event fires before the fields reset; read the select once it has.
+    queueMicrotask(() => {
+      if (select instanceof HTMLSelectElement) setSelected(parseRole(select.value) ?? role);
+    });
+  }
+
   return (
-    <form action={action} className="flex flex-col items-end gap-1">
+    <form id={formId} action={action} onReset={syncAfterReset} className="flex flex-col gap-1">
       <input type="hidden" name="userId" value={userId} />
       <div className="flex items-center gap-2">
-        <select
+        <NativeSelect
           name="role"
           defaultValue={role}
+          onChange={(event) => setSelected(parseRole(event.target.value) ?? role)}
+          size="sm"
           aria-label={`Role for ${userName}`}
-          className="h-9 rounded-md border border-zinc-300 bg-white px-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
         >
           {ROLES.map((value) => (
-            <option key={value} value={value}>
-              {LABELS[value]}
-            </option>
+            <NativeSelectOption key={value} value={value}>
+              {ROLE_LABELS[value]}
+            </NativeSelectOption>
           ))}
-        </select>
-        <button
-          type="submit"
-          disabled={pending}
-          className="h-9 rounded-md bg-zinc-900 px-3 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
-        >
-          {pending ? "Saving…" : "Save"}
-        </button>
+        </NativeSelect>
+        {needsSelfDemotionConfirm({ isSelf, selected }) ? (
+          <ConfirmDialog
+            triggerLabel="Save"
+            pendingLabel="Saving…"
+            triggerVariant="default"
+            triggerSize="sm"
+            title="Remove your own admin access?"
+            description="You'll be signed out on all your devices and lose access to the admin area. Only another admin can give it back."
+            confirmLabel="Change my role"
+            tone="destructive"
+            form={formId}
+            pending={pending}
+          />
+        ) : (
+          <SubmitButton pending={pending} size="sm">
+            {pending ? "Saving…" : "Save"}
+          </SubmitButton>
+        )}
       </div>
-      {state.message ? (
-        <p
-          role={state.status === "error" ? "alert" : "status"}
-          className={`text-xs ${state.status === "error" ? "text-red-700 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}
-        >
-          {state.message}
-        </p>
-      ) : null}
+      <InlineStatus tone={state.status === "error" ? "error" : "success"}>{state.message}</InlineStatus>
     </form>
   );
 }

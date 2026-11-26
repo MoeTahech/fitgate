@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { FormAlert } from "@/components/ui/form";
+import { FormAlert } from "@/components/form-alert";
+import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/client";
 import { describeAuthError } from "@/lib/auth/client-errors";
 
@@ -25,15 +26,10 @@ export function ResendVerification({ email, callbackURL }: { email: string; call
 
   return (
     <div className="flex flex-col gap-3">
-      {status ? <FormAlert tone={status.tone}>{status.message}</FormAlert> : null}
-      <button
-        type="button"
-        onClick={resend}
-        disabled={pending}
-        className="h-10 rounded-md border border-zinc-300 px-4 text-sm font-medium text-zinc-800 transition hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
-      >
+      <FormAlert tone={status?.tone ?? "success"}>{status?.message}</FormAlert>
+      <Button type="button" variant="outline" size="lg" onClick={resend} disabled={pending} aria-busy={pending || undefined}>
         {pending ? "Sending…" : "Resend verification email"}
-      </button>
+      </Button>
     </div>
   );
 }
