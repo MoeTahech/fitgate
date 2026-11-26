@@ -23,7 +23,7 @@ UI primitive, `textarea`, comes from the shadcn CLI, which we already use.
 |---|---|
 | 1 | **Confirmation inputs live inside `ConfirmDialog`.** Void (reason), refund (amount + reason), and reject freeze (optional reason) collect their inputs in the dialog. `ConfirmDialog` gets two optional props. `fields: (formId) => ReactNode` holds controls rendered in the dialog body and tied to the dialog's form through the HTML `form` attribute, so `requestSubmit()` sends them even though the dialog is a portal. `validate: (form) => boolean`: when `fields` is set, it runs on confirm, and a failure keeps the dialog open (it calls `showFieldErrors`, which focuses the first invalid field inside the dialog). Without `fields` it runs before the dialog opens, which the record-payment switch needs for its page form. |
 | 2 | **Row-action results sit at page level.** A new shared client component `ActionResults` (provider + results region + `useActionResults()`) generalizes the trainers page pattern. Row actions run through it, and its always-mounted `FormAlert` is the `finalFocus` target. A results region inside a card would lose its state, because cards move or unmount after an action: leaving moves a membership from Current to Past, and revoking removes the row. Forms with fields (invite, freeze request, record payment, extend) keep their own `useActionState` and an inline `FormAlert`, because they stay mounted. |
-| 3 | **The switch confirmation is driven by the read model.** `getMemberDetail().recordPayment.plans[].replacement` and `openBase` already say what recording each plan does. When the admin picks a `switch` plan, the submit button becomes a `ConfirmDialog` ("X days left will be lost", "the partner will be removed"), and the form gets a hidden `confirmSwitch=true`. `same_plan`, `conflict`, and `closedForToday` disable submit and explain why. If the page is stale, the server still answers `HAS_ACTIVE_BASE` with `SWITCH_NEEDS_CONFIRMATION`. The action shows that reason with the fresh day count, and `refresh()` updates the form. |
+| 3 | **The switch confirmation is driven by the read model.** `getMemberDetail().recordPayment.plans[].replacement` and `openBase` already say what recording each plan does. When the admin picks a `switch` plan, the submit button becomes a `ConfirmDialog` ("X days left will be lost", "the partner will be removed"). `confirmSwitch=true` is sent only by the dialog's confirm, never pre-set in the form (see step 13). `same_plan`, `conflict`, and `closedForToday` disable submit and explain why. If the page is stale, the server still answers `HAS_ACTIVE_BASE` with `SWITCH_NEEDS_CONFIRMATION`. The action shows that reason with the fresh day count, and `refresh()` updates the form. |
 | 4 | **Error copy lives in one tested module**, `src/lib/memberships-ui/messages.ts`. Every `MembershipErrorCode` maps through a complete typed `Record` per audience (`member`, `admin`), so a new code fails `tsc`. `HAS_ACTIVE_BASE` details are parsed with a Zod schema of `OpenBaseConflictDetails` and mapped per reason. `INVALID_FREEZE_DATES` reasons map to field errors. `RATE_LIMITED` gets a generic "Too many attempts" message that never reveals account state. |
 | 5 | **Client and server share the form schemas** (`src/lib/memberships-ui/forms.ts`), built on the client-safe schemas in `services/memberships/schemas.ts` (`reasonSchema`, `noteSchema`, `referenceSchema`, `manualPaymentMethodSchema`, `localDateSchema`). Client forms run them before submitting (`showFieldErrors`). Server actions parse FormData with the same schemas and return `fieldErrors` the forms render. |
 | 6 | **Money:** `src/lib/money.ts` has `formatMoney(cents, currency)` (`Intl.NumberFormat`, en-GB) and `parseAmountToCents("12.50")` (strict decimal, at most 2 places, returns integer cents). The refund amount field takes currency units. The default is the full amount when a full refund is allowed; otherwise the hint says "less than {amount}" (decision 8: a full refund only on the latest payment). |
@@ -172,6 +172,11 @@ for your OK or changes before step 13.
     - closed for today: Day Pass copy.
 
     Hidden when `recordPayment.allowed` is false.
+
+    `confirmSwitch` is never pre-set in the page form. Only the switch dialog's confirm adds it
+    (e.g. as the submitter's name/value, or set in `confirm`). An Enter-key submit without it gets
+    the server's `SWITCH_NEEDS_CONFIRMATION` copy. The form also intercepts `onSubmit` and opens
+    the dialog instead of submitting.
   - **Memberships** `DataTable`: plan (a link to the membership detail page), status, period,
     seat role, credits.
   - An **Extend** card per membership with `extension`: "Extend to {newEnd} for {price}", with
@@ -183,6 +188,8 @@ for your OK or changes before step 13.
   - record payment success: the amount comes from the plan;
   - a switch without `confirmSwitch` returns the reason copy with the day count, and with it the
     switch succeeds;
+  - `recordPaymentAction` without `confirmSwitch` on a switch returns the confirmation copy and
+    changes nothing (no payment, the open membership untouched);
   - a note containing an email returns a field error;
   - `DUPLICATE_REFERENCE` maps to the reference field;
   - a non-admin is refused;
@@ -214,6 +221,8 @@ for your OK or changes before step 13.
     amount equals the full payment, it adds the `correctionEffect` text (the same text void
     shows); for a partial amount it says only the amounts change. The choice is a pure
     `refundEffectText(amountCents, payment, membership)` in `display.ts`, unit tested.
+  - The void, refund, and reject dialogs keep their field-error state inside the component
+    rendered by `fields`, so it resets when the dialog reopens.
   - **Freezes**: Approve or Reject for undecided future requests, and Cancel (`ConfirmDialog`)
     for open ones not yet started.
   - **Credit ledger** and **audit trail** (action, actor, time, compact details JSON).
