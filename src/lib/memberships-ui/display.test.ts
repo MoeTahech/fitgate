@@ -8,6 +8,7 @@ import {
   freezeDayCount,
   freezeDaysText,
   freezeLastDay,
+  pastEntry,
   periodText,
   recordPaymentNotice,
   refundEffectText,
@@ -229,5 +230,18 @@ describe("recordPaymentNotice", () => {
       expect(notice).toMatchObject({ tone: "warning", blocked: true, needsConfirm: false });
       expect(notice?.text).toContain("Day Pass");
     }
+  });
+});
+
+describe("pastEntry", () => {
+  const endedAt = at(-3 * DAY);
+  const seatEndedAt = at(-1 * DAY);
+
+  it.each(["CANCELLED", "EXPIRED"] as const)("an %s membership shows its status and end date", (status) => {
+    expect(pastEntry({ status, endedAt, seat: { endedAt: seatEndedAt } })).toEqual({ status, endedAt });
+  });
+
+  it.each(["ACTIVE", "FROZEN", "PAST_DUE"] as const)("a %s membership the person left shows Left and their seat's end", (status) => {
+    expect(pastEntry({ status, endedAt: null, seat: { endedAt: seatEndedAt } })).toEqual({ status: "LEFT", endedAt: seatEndedAt });
   });
 });

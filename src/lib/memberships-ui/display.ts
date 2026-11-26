@@ -7,7 +7,8 @@ import { CONFLICT_REASON_MESSAGES, switchLossText } from "./messages";
 const DATE_ONLY = { dateStyle: "medium" } as const;
 const DAY_MS = 86_400_000;
 
-function localDate(instant: Date, timeZone: string): string {
+/** A date as "12 Nov 2026" in the gym's time zone. */
+export function formatDay(instant: Date, timeZone: string): string {
   return formatLocal(instant, timeZone, DATE_ONLY);
 }
 
@@ -17,7 +18,7 @@ function isSameLocalDay(a: Date, b: Date, timeZone: string): boolean {
   return x.year === y.year && x.month === y.month && x.day === y.day;
 }
 
-function pluralDays(days: number): string {
+export function pluralDays(days: number): string {
   return `${days} ${days === 1 ? "day" : "days"}`;
 }
 
@@ -38,9 +39,9 @@ export function periodText(m: PeriodView, timeZone: string, now: Date): string {
     const closing = formatLocalTime(m.currentPeriodEnd, timeZone);
     return isSameLocalDay(m.currentPeriodEnd, now, timeZone)
       ? `Valid today until closing (${closing})`
-      : `${localDate(m.currentPeriodEnd, timeZone)}, until closing (${closing})`;
+      : `${formatDay(m.currentPeriodEnd, timeZone)}, until closing (${closing})`;
   }
-  return `${localDate(m.currentPeriodStart, timeZone)} – ${localDate(m.currentPeriodEnd, timeZone)}`;
+  return `${formatDay(m.currentPeriodStart, timeZone)} – ${formatDay(m.currentPeriodEnd, timeZone)}`;
 }
 
 type FreezeDates = Pick<FreezeWindow, "startsAt" | "endsAt">;
@@ -60,8 +61,8 @@ export function freezeDayCount(f: FreezeDates, timeZone: string): number {
 /** "4 Dec 2026 – 10 Dec 2026 (7 days)", or "4 Dec 2026 (1 day)". */
 export function freezeDaysText(f: FreezeDates, timeZone: string): string {
   const days = freezeDayCount(f, timeZone);
-  const first = localDate(f.startsAt, timeZone);
-  const range = days === 1 ? first : `${first} – ${localDate(freezeLastDay(f, timeZone), timeZone)}`;
+  const first = formatDay(f.startsAt, timeZone);
+  const range = days === 1 ? first : `${first} – ${formatDay(freezeLastDay(f, timeZone), timeZone)}`;
   return `${range} (${pluralDays(days)})`;
 }
 
@@ -70,6 +71,18 @@ const CANCELLABLE_FREEZE_STATUSES: readonly FreezeStatus[] = ["REQUESTED", "APPR
 /** The owner (or an admin) can cancel a requested or approved freeze until it starts. */
 export function canCancelFreeze(f: FreezeWindow, now: Date): boolean {
   return CANCELLABLE_FREEZE_STATUSES.includes(freezeDisplayStatus(f, now)) && f.startsAt.getTime() > now.getTime();
+}
+
+// ─── Past memberships ────────────────────────────────────────────────────────
+
+export type PastEntry = { status: MembershipStatus | "LEFT"; endedAt: Date | null };
+
+/**
+ * What the Past list shows for a membership: its status and end when it has ended, else the
+ * person's seat on a running membership has ended (they left, or the owner removed them).
+ */
+export function pastEntry(m: { status: MembershipStatus; endedAt: Date | null; seat: { endedAt: Date | null } }): PastEntry {
+  return isEndedStatus(m.status) ? { status: m.status, endedAt: m.endedAt } : { status: "LEFT", endedAt: m.seat.endedAt };
 }
 
 // ─── Payment corrections ─────────────────────────────────────────────────────
@@ -86,7 +99,7 @@ type CorrectedMembership = { status: MembershipStatus; currentPeriodStart: Date 
 export function correctionEffect(payment: CorrectedPayment, membership: CorrectedMembership, timeZone: string, now: Date): string {
   if (isEndedStatus(membership.status) || payment.periodStart === null) return "The membership has ended, so it stays as it is.";
   if (payment.periodStart.getTime() <= membership.currentPeriodStart.getTime()) return "This cancels the membership.";
-  const date = localDate(payment.periodStart, timeZone);
+  const date = formatDay(payment.periodStart, timeZone);
   return payment.periodStart.getTime() <= now.getTime()
     ? `The membership's end moves back to ${date}, which has passed, so it ends now.`
     : `The membership's end moves back to ${date}.`;
