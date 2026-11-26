@@ -41,8 +41,9 @@ export function ForgotPasswordForm() {
 
   return (
     <CenteredCard
-      title="Reset your password"
-      description="Enter the email you signed up with and we'll send you a reset link."
+      title={sent ? "Check your email" : "Reset your password"}
+      focusTitle={sent}
+      description={sent ? undefined : "Enter the email you signed up with and we'll send you a reset link."}
       footer={<TextLink href="/sign-in">Back to sign in</TextLink>}
     >
       <div className="flex flex-col gap-4">

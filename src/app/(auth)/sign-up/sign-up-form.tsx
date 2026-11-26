@@ -44,6 +44,7 @@ export function SignUpForm() {
     return (
       <CenteredCard
         title="Check your email"
+        focusTitle
         description={
           <>
             We sent a message to <span className="font-medium text-foreground">{submittedEmail}</span>.

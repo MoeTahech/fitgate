@@ -49,6 +49,7 @@ export function ResetPasswordForm() {
   return (
     <CenteredCard
       title={done ? "Password updated" : "Choose a new password"}
+      focusTitle={done}
       footer={done ? undefined : <TextLink href="/forgot-password">Request a new link</TextLink>}
     >
       <div className="flex flex-col gap-4">

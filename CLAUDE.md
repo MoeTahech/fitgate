@@ -146,7 +146,8 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   `info`/`destructive` (+ `-subtle`). `tests/ui/theme-contrast.test.ts` checks every token pair
   for WCAG AA; add new pairs there. `src/components/ui/` holds the shadcn primitives (edit
   freely). `src/components/` holds the app components pages use: `PageContainer`,
-  `PageHeader`/`SectionHeader`, `CenteredPage`/`CenteredCard` (auth and invite pages),
+  `PageHeader`/`SectionHeader`, `CenteredPage`/`CenteredCard` (auth and invite pages; pass
+  `focusTitle` on a success view that replaces a form so focus moves to its heading),
   `FormField`/`InputField`/`SelectField`, `SubmitButton`, `FormAlert` (form-level messages),
   `InlineStatus` (result line next to a row action; both are always-mounted live regions built
   on `LiveRegions`: in client components render them unconditionally and pass the message or
