@@ -2,6 +2,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
+import { Textarea } from "@/components/ui/textarea";
 
 export type FieldControlProps = {
   id: string;
@@ -37,6 +38,14 @@ export function InputField({ id, label, hint, error, ...input }: FieldProps & Om
   return (
     <FormField id={id} label={label} hint={hint} error={error}>
       {(control) => <Input {...input} {...control} />}
+    </FormField>
+  );
+}
+
+export function TextareaField({ id, label, hint, error, ...textarea }: FieldProps & Omit<ComponentProps<typeof Textarea>, "id">) {
+  return (
+    <FormField id={id} label={label} hint={hint} error={error}>
+      {(control) => <Textarea {...textarea} {...control} />}
     </FormField>
   );
 }

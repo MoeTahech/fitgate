@@ -6,18 +6,31 @@ export type NavItem = {
   label: string;
   /** Path prefix that marks the link active; defaults to `href`. */
   match?: string;
+  /** Active only on the exact path, not on its sub-paths: for a link whose sub-pages have their own links. */
+  exact?: boolean;
   /** Roles that see the link; all signed-in users when omitted. */
   roles?: readonly AppRole[];
 };
 
-export const MAIN_NAV: readonly NavItem[] = [{ href: "/admin/users", label: "Admin", match: "/admin", roles: ["ADMIN"] }];
+export const MAIN_NAV: readonly NavItem[] = [
+  { href: "/account/membership", label: "Membership" },
+  { href: "/admin/users", label: "Admin", match: "/admin", roles: ["ADMIN"] },
+];
 
 export const ADMIN_NAV: readonly NavItem[] = [
+  { href: "/admin/members", label: "Members" },
+  { href: "/admin/memberships", label: "Memberships" },
+  { href: "/admin/payments", label: "Payments" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/trainers", label: "Trainers" },
 ];
 
 export const ACCOUNT_HREF = "/account";
+
+/** The account link. Exact, because `/account/membership` has its own link. */
+export function accountNavItem(label: string): NavItem {
+  return { href: ACCOUNT_HREF, label, exact: true };
+}
 
 export function navItemsFor(items: readonly NavItem[], role: AppRole): NavItem[] {
   return items.filter((item) => !item.roles || item.roles.includes(role));
@@ -25,7 +38,8 @@ export function navItemsFor(items: readonly NavItem[], role: AppRole): NavItem[]
 
 export function isNavItemActive(item: NavItem, pathname: string): boolean {
   const base = item.match ?? item.href;
-  return pathname === base || pathname.startsWith(`${base}/`);
+  if (pathname === base) return true;
+  return !item.exact && pathname.startsWith(`${base}/`);
 }
 
 export const navLinkVariants = cva("flex items-center font-medium transition-colors", {
