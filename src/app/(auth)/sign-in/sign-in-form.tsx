@@ -11,14 +11,16 @@ import { authClient } from "@/lib/auth/client";
 import { describeAuthError } from "@/lib/auth/client-errors";
 import { hardNavigate } from "@/lib/auth/navigation";
 import { showFieldErrors } from "@/lib/forms/field-errors";
-import { safeRedirectPath, verificationCallbackURL } from "@/lib/auth/redirect";
+import { authPageHref, prefillEmail, safeRedirectPath, verificationCallbackURL } from "@/lib/auth/redirect";
 import { fieldErrors, signInSchema } from "@/lib/auth/schemas";
 import { ResendVerification } from "../resend-verification";
 
 const INVALID_CREDENTIALS = "Incorrect email or password.";
 
 export function SignInForm() {
-  const next = safeRedirectPath(useSearchParams().get("next"), "/account");
+  const params = useSearchParams();
+  const next = safeRedirectPath(params.get("next"), "/account");
+  const invitedEmail = prefillEmail(params.get("email"));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
@@ -54,7 +56,7 @@ export function SignInForm() {
       footer={
         <>
           New to FitGate?{" "}
-          <TextLink href={`/sign-up?next=${encodeURIComponent(next)}`}>
+          <TextLink href={authPageHref("/sign-up", next, invitedEmail)}>
             Create an account
           </TextLink>
         </>
@@ -66,7 +68,16 @@ export function SignInForm() {
           {unverifiedEmail ? "Please verify your email address first. We've sent a new link to your inbox." : null}
         </FormAlert>
         {unverifiedEmail ? <ResendVerification email={unverifiedEmail} callbackURL={verificationCallbackURL(next)} /> : null}
-        <InputField id="email" name="email" type="email" label="Email" autoComplete="email" required error={errors.email} />
+        <InputField
+          id="email"
+          name="email"
+          type="email"
+          label="Email"
+          autoComplete="email"
+          defaultValue={invitedEmail}
+          required
+          error={errors.email}
+        />
         <div className="flex flex-col gap-1.5">
           <InputField
             id="password"
