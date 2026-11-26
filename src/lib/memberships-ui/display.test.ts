@@ -30,22 +30,18 @@ function freeze(first: LocalDate, last: LocalDate) {
 }
 
 describe("periodText", () => {
-  it("shows the period as local dates", () => {
-    const text = periodText(
-      { currentPeriodStart: NOW, currentPeriodEnd: new Date("2027-01-02T08:00:00.000Z"), endsAtClosing: false },
-      TZ,
-      NOW,
-    );
-    expect(text).toBe("2 Dec 2026 – 2 Jan 2027");
+  it("shows the period as local dates, with the time it ends", () => {
+    const text = periodText({ currentPeriodStart: NOW, currentPeriodEnd: new Date("2027-01-02T08:00:00.000Z"), endsAtClosing: false }, TZ, NOW);
+    expect(text).toBe("2 Dec 2026 – 2 Jan 2027, 10:00");
   });
 
-  it("uses the local date, not the UTC one", () => {
+  it("uses the local date and time, not the UTC ones", () => {
     const text = periodText(
       { currentPeriodStart: new Date("2026-12-01T22:30:00.000Z"), currentPeriodEnd: new Date("2027-01-01T22:30:00.000Z"), endsAtClosing: false },
       TZ,
       NOW,
     );
-    expect(text).toBe("2 Dec 2026 – 2 Jan 2027");
+    expect(text).toBe("2 Dec 2026 – 2 Jan 2027, 00:30");
   });
 
   it("shows a pass that ends at closing as valid today on its day", () => {
@@ -60,6 +56,24 @@ describe("periodText", () => {
     expect(periodText({ currentPeriodStart: NOW, currentPeriodEnd: closing, endsAtClosing: true }, TZ, at(DAY))).toBe(
       "2 Dec 2026, until closing (22:00)",
     );
+  });
+
+  it("shows a 7-day plan's end with its time, since it ends when it started rather than at day's end", () => {
+    const text = periodText(
+      { currentPeriodStart: new Date("2026-11-26T19:15:00.000Z"), currentPeriodEnd: new Date("2026-12-03T19:15:00.000Z"), endsAtClosing: false },
+      TZ,
+      NOW,
+    );
+    expect(text).toBe("26 Nov 2026 – 3 Dec 2026, 21:15");
+  });
+
+  it("shows a monthly plan's end with its time", () => {
+    const text = periodText(
+      { currentPeriodStart: new Date("2026-11-26T12:37:00.000Z"), currentPeriodEnd: new Date("2026-12-26T12:37:00.000Z"), endsAtClosing: false },
+      TZ,
+      NOW,
+    );
+    expect(text).toBe("26 Nov 2026 – 26 Dec 2026, 14:37");
   });
 });
 

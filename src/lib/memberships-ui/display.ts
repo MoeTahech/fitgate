@@ -31,8 +31,10 @@ function isEndedStatus(status: MembershipStatus): boolean {
 type PeriodView = { currentPeriodStart: Date; currentPeriodEnd: Date; endsAtClosing: boolean };
 
 /**
- * The period as dates ("12 Nov 2026 – 12 Dec 2026"). A pass that ends at closing time shows
- * "Valid today until closing (21:00)" on its day, else its date with the closing time.
+ * The period with the time it ends ("26 Nov 2026 – 26 Dec 2026, 14:37"): memberships end at the
+ * time of day they started, not at the end of the day. A pass that ends at closing time (Day
+ * Pass, Gym Trial) shows "Valid today until closing (21:00)" on its day, else its date with the
+ * closing time.
  */
 export function periodText(m: PeriodView, timeZone: string, now: Date): string {
   if (m.endsAtClosing) {
@@ -41,7 +43,7 @@ export function periodText(m: PeriodView, timeZone: string, now: Date): string {
       ? `Valid today until closing (${closing})`
       : `${formatDay(m.currentPeriodEnd, timeZone)}, until closing (${closing})`;
   }
-  return `${formatDay(m.currentPeriodStart, timeZone)} – ${formatDay(m.currentPeriodEnd, timeZone)}`;
+  return `${formatDay(m.currentPeriodStart, timeZone)} – ${formatDay(m.currentPeriodEnd, timeZone)}, ${formatLocalTime(m.currentPeriodEnd, timeZone)}`;
 }
 
 type FreezeDates = Pick<FreezeWindow, "startsAt" | "endsAt">;

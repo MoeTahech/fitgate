@@ -79,7 +79,7 @@ const FREEZE: MyFreeze = {
 
 describe("MembershipCard period", () => {
   it("shows the period as dates", () => {
-    expect(detail(render(), "Period")).toBe("27 Nov 2026 – 27 Dec 2026");
+    expect(detail(render(), "Period")).toBe("27 Nov 2026 – 27 Dec 2026, 10:00");
   });
 
   it("shows a pass that ends at closing as valid today until the closing time", () => {
@@ -90,6 +90,15 @@ describe("MembershipCard period", () => {
       currentPeriodEnd: new Date("2026-12-02T19:00:00.000Z"),
     });
     expect(detail(root, "Period")).toBe("Valid today until closing (21:00)");
+  });
+
+  it("shows the end time of a 7-day plan", () => {
+    const root = render({
+      plan: { ...PLAN, name: "Class Pack", type: "ADDON", billing: "ONE_TIME", durationMode: "ROLLING", durationDays: 7, intervalMonths: null, maxMembers: 1 },
+      currentPeriodStart: new Date("2026-11-26T19:15:00.000Z"),
+      currentPeriodEnd: new Date("2026-12-03T19:15:00.000Z"),
+    });
+    expect(detail(root, "Period")).toBe("26 Nov 2026 – 3 Dec 2026, 21:15");
   });
 
   it("shows credits left only on a credit plan", () => {
