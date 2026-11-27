@@ -590,6 +590,8 @@ describe("getMemberDetail", () => {
       reason: "PARTNER_SEAT",
     });
     expect(partnerDetail?.payments).toEqual([]);
+    expect(ownerDetail?.memberships[0].extension).toEqual({ priceCents: plan.priceCents, currency: plan.currency, newEnd: expect.any(Date) });
+    expect(partnerDetail?.memberships[0]).toMatchObject({ id: membershipId, seat: { role: "PARTNER" }, extension: null });
 
     const lapsedDetail = await getMemberDetail(lapsed.id);
     expect(lapsedDetail?.recordPayment.openBase).toBeNull();

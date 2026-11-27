@@ -1,6 +1,15 @@
 "use client";
 
-import { useId, useRef, useState, type ComponentProps, type KeyboardEvent, type ReactNode, type RefObject } from "react";
+import {
+  useId,
+  useRef,
+  useState,
+  type ComponentProps,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,14 +46,19 @@ export function shouldOpen<F>({ hasFields, validate, form }: Gate<F>): boolean {
   return hasFields || !validate || validate(form);
 }
 
-/** Runs on confirm: with `fields`, an invalid form isn't submitted and the dialog stays open. */
+/**
+ * Runs on confirm: with `fields`, an invalid form isn't submitted and the dialog stays open. A
+ * `submitter` (the confirm button, with `submitValue`) adds its name and value to the submit.
+ */
 export function confirmSubmit<F extends Pick<HTMLFormElement, "requestSubmit">>({
   hasFields,
   validate,
   form,
-}: Gate<F>): "submitted" | "invalid" {
+  submitter,
+}: Gate<F> & { submitter?: HTMLElement }): "submitted" | "invalid" {
   if (hasFields && validate && !validate(form)) return "invalid";
-  form.requestSubmit();
+  if (submitter) form.requestSubmit(submitter);
+  else form.requestSubmit();
   return "submitted";
 }
 
@@ -73,6 +87,10 @@ export function isImplicitSubmit({ key, target, isComposing }: { key: string; ta
  * submit carries it although the dialog is a portal. `validate(form)` runs on confirm when
  * `fields` is set (a failure keeps the dialog open), otherwise before the dialog opens. Call
  * `showFieldErrors` in it so the first invalid field gets focus.
+ *
+ * `submitValue` makes the confirm button the form's submitter with that name and value, so only a
+ * confirmed submit carries it (the form never holds it). `open`/`onOpenChange` control the dialog,
+ * e.g. to open it from the form's own submit handler; the trigger still validates before opening.
  */
 export function ConfirmDialog({
   triggerLabel,
@@ -88,6 +106,9 @@ export function ConfirmDialog({
   finalFocus,
   fields,
   validate,
+  submitValue,
+  open: openProp,
+  onOpenChange: onOpenChangeProp,
   ...target
 }: {
   triggerLabel: string;
@@ -103,9 +124,14 @@ export function ConfirmDialog({
   finalFocus?: RefObject<HTMLElement | null>;
   fields?: (formId: string) => ReactNode;
   validate?: (form: HTMLFormElement) => boolean;
+  submitValue?: { name: string; value: string };
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 } & Target) {
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = openProp ?? uncontrolledOpen;
   const confirmed = useRef(false);
+  const confirmButton = useRef<HTMLButtonElement>(null);
   const ownFormId = useId();
   const formId = target.form ?? ownFormId;
   const hasFields = fields !== undefined;
@@ -114,6 +140,11 @@ export function ConfirmDialog({
     const form = document.getElementById(formId);
     if (!(form instanceof HTMLFormElement)) throw new Error(`ConfirmDialog: no form with id "${formId}"`);
     return form;
+  }
+
+  function setOpen(next: boolean) {
+    if (openProp === undefined) setUncontrolledOpen(next);
+    onOpenChangeProp?.(next);
   }
 
   function onOpenChange(next: boolean) {
@@ -125,9 +156,23 @@ export function ConfirmDialog({
   }
 
   function confirm() {
-    if (confirmSubmit({ hasFields, validate, form: targetForm() }) === "invalid") return;
+    const submitter = (submitValue && confirmButton.current) || undefined;
+    if (confirmSubmit({ hasFields, validate, form: targetForm(), submitter }) === "invalid") return;
     confirmed.current = true;
     setOpen(false);
+  }
+
+  function onConfirmClick(event: MouseEvent<HTMLButtonElement>) {
+    // With `submitValue` the button submits; its own activation would skip `validate`.
+    event.preventDefault();
+    confirm();
+  }
+
+  /** After a confirm, `finalFocus`; otherwise back to the trigger. Reset for the next opening. */
+  function focusOnClose(): HTMLElement | true {
+    const target = confirmed.current ? finalFocus?.current : null;
+    confirmed.current = false;
+    return target ?? true;
   }
 
   function onFieldsKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -149,7 +194,7 @@ export function ConfirmDialog({
         >
           {pending && pendingLabel ? pendingLabel : triggerLabel}
         </AlertDialogTrigger>
-        <AlertDialogContent finalFocus={() => (confirmed.current && finalFocus?.current) || true}>
+        <AlertDialogContent finalFocus={focusOnClose}>
           <AlertDialogHeader>
             <AlertDialogTitle>{title}</AlertDialogTitle>
             <AlertDialogDescription>{description}</AlertDialogDescription>
@@ -161,7 +206,14 @@ export function ConfirmDialog({
           ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
-            <AlertDialogAction type="button" variant={tone === "destructive" ? "destructive" : "default"} onClick={confirm}>
+            <AlertDialogAction
+              ref={confirmButton}
+              variant={tone === "destructive" ? "destructive" : "default"}
+              onClick={onConfirmClick}
+              {...(submitValue
+                ? { type: "submit", form: formId, name: submitValue.name, value: submitValue.value }
+                : { type: "button" })}
+            >
               {confirmLabel}
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -484,6 +484,7 @@ export type AdminMembershipSummary = MembershipStanding & {
   /** The member's seat on it. */
   seat: { role: MemberRole; joinedAt: Date; endedAt: Date | null };
   creditBalance: number | null;
+  /** Set only on the owner's seat: the owner pays an extension, so it is recorded from their page. */
   extension: ExtensionPreview | null;
 };
 
@@ -629,7 +630,7 @@ export async function getMemberDetail(userId: string): Promise<MemberDetail | nu
         owner: m.owner,
         seat: { role: seat.role, joinedAt: seat.joinedAt, endedAt: seat.endedAt },
         creditBalance: balanceOf(m.id),
-        extension: extensionPreview(m, clock, now),
+        extension: seat.role === "OWNER" ? extensionPreview(m, clock, now) : null,
       } satisfies AdminMembershipSummary,
     }))
     .sort((a, b) => Number(b.running) - Number(a.running))

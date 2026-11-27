@@ -134,6 +134,26 @@ describe("confirmSubmit", () => {
     expect(confirmSubmit({ hasFields: true, form })).toBe("submitted");
     expect(form.requestSubmit).toHaveBeenCalledOnce();
   });
+
+  it("submits with the confirm button as the submitter, so its name and value are sent", () => {
+    const form = stubForm();
+    const submitter = { name: "confirmSwitch", value: "true" } as unknown as HTMLElement;
+    expect(confirmSubmit({ hasFields: false, form, submitter })).toBe("submitted");
+    expect(form.requestSubmit).toHaveBeenCalledExactlyOnceWith(submitter);
+  });
+
+  it("submits without a submitter by default", () => {
+    const form = stubForm();
+    confirmSubmit({ hasFields: false, form });
+    expect(form.requestSubmit).toHaveBeenCalledExactlyOnceWith();
+  });
+
+  it("never submits with the submitter when its fields are invalid", () => {
+    const form = stubForm();
+    const submitter = { name: "confirmSwitch", value: "true" } as unknown as HTMLElement;
+    expect(confirmSubmit({ hasFields: true, validate: () => false, form, submitter })).toBe("invalid");
+    expect(form.requestSubmit).not.toHaveBeenCalled();
+  });
 });
 
 describe("isImplicitSubmit", () => {

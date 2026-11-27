@@ -1,23 +1,19 @@
 "use server";
 
-import { refresh } from "next/cache";
 import type { z } from "zod";
-import { isAuthError, requireUser, type SessionUser } from "@/lib/auth/session";
+import { runMembershipAction, type ActionContext } from "@/lib/membership-actions";
 import {
   freezeIdFormSchema,
   freezeRequestFormSchema,
   inviteFormSchema,
   inviteIdFormSchema,
   membershipIdFormSchema,
-  parseForm,
   seatIdFormSchema,
   startTrialFormSchema,
   type ActionResult,
 } from "@/lib/memberships-ui/forms";
 import { TRIAL_KIND_LABELS } from "@/lib/memberships-ui/labels";
-import { authErrorResult, membershipErrorResult } from "@/lib/memberships-ui/messages";
-import { getRequestIp, getRequestIpHash } from "@/lib/request-ip";
-import { MembershipError, toMembershipError } from "@/lib/services/memberships/errors";
+import { getRequestIp } from "@/lib/request-ip";
 import { cancelFreeze, requestFreeze } from "@/lib/services/memberships/freezes";
 import {
   createMembershipInvite,
@@ -31,48 +27,13 @@ import {
 import { startTrial } from "@/lib/services/memberships/trials";
 import { isoDate } from "@/lib/time";
 
-type ActionContext = { user: SessionUser; ipHash: string | null };
-
-/**
- * An invalid hidden field (an id) means the page is stale: its error becomes the message. Errors
- * on the visible fields stay field errors.
- */
-function invalidForm(fieldErrors: Record<string, string>, visibleFields: readonly string[]): ActionResult {
-  const hidden = Object.entries(fieldErrors).find(([field]) => !visibleFields.includes(field));
-  return hidden ? { status: "error", message: hidden[1] } : { status: "error", fieldErrors };
-}
-
-/**
- * The signed-in user, the parsed form, then the service call. Membership errors become member
- * copy; once the service call succeeds, the route is refreshed.
- */
-async function runMemberAction<S extends z.ZodType>(
+function runMemberAction<S extends z.ZodType>(
   formData: FormData,
   schema: S,
   visibleFields: readonly string[],
   perform: (data: z.output<S>, context: ActionContext) => Promise<ActionResult>,
 ): Promise<ActionResult> {
-  let user: SessionUser;
-  try {
-    user = await requireUser();
-  } catch (error) {
-    if (isAuthError(error)) return authErrorResult(error.code);
-    throw error;
-  }
-
-  const parsed = parseForm(schema, formData);
-  if (!parsed.success) return invalidForm(parsed.fieldErrors, visibleFields);
-
-  let result: ActionResult;
-  try {
-    result = await perform(parsed.data, { user, ipHash: await getRequestIpHash() });
-  } catch (error) {
-    const mapped = toMembershipError(error);
-    if (mapped instanceof MembershipError) return membershipErrorResult(mapped, "member");
-    throw mapped;
-  }
-  refresh();
-  return result;
+  return runMembershipAction({ audience: "member", formData, schema, visibleFields, perform });
 }
 
 async function deliverInvite(invite: IssuedMembershipInvite): Promise<ActionResult> {
