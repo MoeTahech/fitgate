@@ -161,26 +161,22 @@ function Payments({ payments, timeZone, memberName }: { payments: readonly Admin
               id: "plan",
               header: "Plan",
               grow: true,
-              cell: (payment) =>
-                payment.membershipId ? (
-                  <p>
-                    <TextLink href={membershipHref(payment.membershipId)}>{payment.planName ?? "Membership"}</TextLink>
-                  </p>
-                ) : (
-                  <p>{payment.planName ?? "—"}</p>
-                ),
-            },
-            { id: "status", header: "Status", cell: (payment) => <PaymentStatusBadge status={payment.status} /> },
-            {
-              id: "recorded",
-              header: "Recorded by",
+              stackedLabel: false,
               cell: (payment) => (
                 <>
-                  <p>{payment.recordedByName ?? "System"}</p>
-                  {payment.reference ? <p className="text-muted-foreground">Ref. {payment.reference}</p> : null}
+                  {payment.membershipId ? (
+                    <p>
+                      <TextLink href={membershipHref(payment.membershipId)}>{payment.planName ?? "Membership"}</TextLink>
+                    </p>
+                  ) : (
+                    <p>{payment.planName ?? "No plan"}</p>
+                  )}
+                  {payment.reference ? <p className="text-muted-foreground">Reference {payment.reference}</p> : null}
+                  {payment.recordedByName ? <p className="text-muted-foreground">Recorded by {payment.recordedByName}</p> : null}
                 </>
               ),
             },
+            { id: "status", header: "Status", cell: (payment) => <PaymentStatusBadge status={payment.status} /> },
           ]}
         />
       )}

@@ -4,7 +4,7 @@ import type { SessionUser } from "@/lib/auth/guards";
 import { db } from "@/lib/db";
 import { resetDatabase } from "../../../tests/support/database";
 import { createManualPayment, createOwnedMembership, createPlan, createUser } from "../../../tests/support/factories";
-import { byAttr, find, renderMarkup, textOf } from "../../../tests/support/markup";
+import { byAttr, byTag, classesOf, find, findAll, renderMarkup, textOf } from "../../../tests/support/markup";
 import { MemberDetailView } from "./members/[userId]/member-detail";
 import { MembersList } from "./members/members-list";
 import { MembershipDetailView } from "./memberships/[id]/membership-detail";
@@ -93,6 +93,23 @@ beforeEach(async () => {
 
 afterEach(() => {
   session.user = null;
+});
+
+describe("admin member detail payments", () => {
+  it("shows a long reference and the recorder in the wrapping plan column", async () => {
+    session.user = sessionUser("ADMIN");
+    const membership = await db.membership.findUniqueOrThrow({ where: { id: target.membershipId } });
+    const reference = `BANK-TRANSFER-${"0123456789".repeat(6)}`;
+    await createManualPayment(membership, target.memberId, { reference });
+
+    const root = renderMarkup(await MemberDetailView({ params: Promise.resolve({ userId: target.memberId }) }));
+    const table = find(root, byAttr("aria-label", "Payments of Gina Guarded"));
+    expect(table).toBeDefined();
+    const cell = find(table!, (element) => element.tag === "td" && textOf(element).includes(reference));
+    expect(classesOf(cell)).toContain("wrap-anywhere");
+    expect(textOf(cell!)).toContain("Recorded by Gina Guarded");
+    expect(findAll(table!, byTag("th")).map(textOf)).not.toContain("Recorded by");
+  });
 });
 
 describe.each(PAGES)("admin $name", (page) => {
