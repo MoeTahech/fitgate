@@ -64,6 +64,11 @@ const UNCOLLECTED_PAYMENT_STATUSES: PaymentStatus[] = ["VOIDED", "PENDING", "FAI
 
 const pageSchema = z.coerce.number().int().min(1).max(10_000).catch(1).default(1);
 
+/** A list's `page` search param as the list queries read it, e.g. for a sign-in return path. */
+export function parseListPage(value: unknown): number {
+  return pageSchema.parse(value);
+}
+
 function pageCount(total: number): number {
   return Math.max(1, Math.ceil(total / LIST_PAGE_SIZE));
 }

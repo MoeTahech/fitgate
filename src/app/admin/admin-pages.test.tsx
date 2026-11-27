@@ -95,6 +95,29 @@ afterEach(() => {
   session.user = null;
 });
 
+describe.each([
+  {
+    name: "members list",
+    render: () => MembersList({ searchParams: Promise.resolve({ q: "gina", page: "3" }) }),
+    next: "/admin/members?q=gina&page=3",
+  },
+  {
+    name: "memberships list",
+    render: () => MembershipsList({ searchParams: Promise.resolve({ status: "ACTIVE", page: "3" }) }),
+    next: "/admin/memberships?status=ACTIVE&page=3",
+  },
+  {
+    name: "payments",
+    render: () => PaymentsList({ searchParams: Promise.resolve({ method: "CASH", page: "3" }) }),
+    next: "/admin/payments?method=CASH&page=3",
+  },
+])("admin $name sign-in return path", ({ render, next }) => {
+  it("keeps the filters and the page", async () => {
+    session.user = null;
+    expect(await digestOf(render())).toContain(`/sign-in?next=${encodeURIComponent(next)}`);
+  });
+});
+
 describe("admin member detail payments", () => {
   it("shows a long reference and the recorder in the wrapping plan column", async () => {
     session.user = sessionUser("ADMIN");

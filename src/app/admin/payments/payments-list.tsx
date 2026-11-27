@@ -12,6 +12,7 @@ import { PAYMENT_METHOD_LABELS } from "@/lib/memberships-ui/labels";
 import { formatMoney } from "@/lib/money";
 import {
   listPayments,
+  parseListPage,
   PAYMENT_METHODS,
   PAYMENT_STATUSES,
   type PaymentListFilters,
@@ -91,7 +92,7 @@ function FilterForm({ filters }: { filters: PaymentListFilters }) {
 export async function PaymentsList({ searchParams }: { searchParams: SearchParams }) {
   const raw = await searchParams;
   const rawFilters = Object.fromEntries(FILTER_KEYS.map((key) => [key, typeof raw[key] === "string" ? raw[key] : undefined]));
-  await requirePageUser(paymentsHref(rawFilters), "ADMIN");
+  await requirePageUser(paymentsHref(rawFilters, parseListPage(raw.page)), "ADMIN");
   const { payments, total, page, pageCount, totals, filters, timeZone } = await listPayments({ ...rawFilters, page: raw.page });
 
   return (

@@ -13,6 +13,7 @@ import { MEMBERSHIP_SOURCE_LABELS } from "@/lib/memberships-ui/labels";
 import {
   listMemberships,
   MEMBERSHIP_SOURCES,
+  parseListPage,
   MEMBERSHIP_STATUSES,
   type MembershipListFilters,
 } from "@/lib/services/memberships/queries";
@@ -96,7 +97,7 @@ function FilterForm({ filters, plans }: { filters: MembershipListFilters; plans:
 export async function MembershipsList({ searchParams }: { searchParams: SearchParams }) {
   const raw = await searchParams;
   const rawFilters = Object.fromEntries(FILTER_KEYS.map((key) => [key, typeof raw[key] === "string" ? raw[key] : undefined]));
-  await requirePageUser(membershipsHref(rawFilters), "ADMIN");
+  await requirePageUser(membershipsHref(rawFilters, parseListPage(raw.page)), "ADMIN");
   const { memberships, total, page, pageCount, filters, plans, timeZone } = await listMemberships({ ...rawFilters, page: raw.page });
 
   return (

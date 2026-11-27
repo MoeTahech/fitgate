@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { requirePageUser } from "@/lib/auth/session";
 import { formatDay } from "@/lib/memberships-ui/display";
-import { listMembers, type BaseSummary } from "@/lib/services/memberships/queries";
+import { listMembers, parseListPage, type BaseSummary } from "@/lib/services/memberships/queries";
 
 type SearchParams = PageProps<"/admin/members">["searchParams"];
 
@@ -41,7 +41,7 @@ function BaseMembership({ base, timeZone }: { base: BaseSummary | null; timeZone
 /** The admin's member list: search, base membership, and paging. */
 export async function MembersList({ searchParams }: { searchParams: SearchParams }) {
   const raw = await searchParams;
-  await requirePageUser(membersHref({ q: typeof raw.q === "string" ? raw.q : undefined }), "ADMIN");
+  await requirePageUser(membersHref({ q: typeof raw.q === "string" ? raw.q : undefined, page: parseListPage(raw.page) }), "ADMIN");
   const { members, total, page, pageCount, query, timeZone } = await listMembers({ q: raw.q, page: raw.page });
 
   return (
