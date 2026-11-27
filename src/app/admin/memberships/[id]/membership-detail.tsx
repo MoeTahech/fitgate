@@ -72,7 +72,6 @@ function Seats({ detail }: { detail: MembershipDetail }) {
             id: "person",
             header: "Person",
             grow: true,
-            wrap: true,
             stackedLabel: false,
             cell: (seat) => (
               <>
@@ -126,7 +125,6 @@ function Invites({ detail }: { detail: MembershipDetail }) {
             id: "invite",
             header: "Invite",
             grow: true,
-            wrap: true,
             stackedLabel: false,
             cell: (invite) => (
               <>
@@ -179,7 +177,6 @@ function Freezes({ detail, now }: { detail: MembershipDetail; now: Date }) {
             id: "history",
             header: "History",
             grow: true,
-            wrap: true,
             cell: (freeze) => (
               <Lines>
                 <p>
@@ -240,7 +237,7 @@ function Credits({ detail }: { detail: MembershipDetail }) {
           columns={[
             { id: "when", header: "When", cell: (entry) => formatLocal(entry.createdAt, timeZone) },
             { id: "change", header: "Change", cell: (entry) => (entry.delta > 0 ? `+${entry.delta}` : `−${Math.abs(entry.delta)}`) },
-            { id: "reason", header: "Reason", grow: true, wrap: true, cell: (entry) => <p>{CREDIT_REASON_LABELS[entry.reason]}</p> },
+            { id: "reason", header: "Reason", grow: true, cell: (entry) => <p>{CREDIT_REASON_LABELS[entry.reason]}</p> },
             { id: "by", header: "By", cell: (entry) => entry.actorName ?? "System" },
           ]}
         />
@@ -277,7 +274,6 @@ function AuditTrail({ detail }: { detail: MembershipDetail }) {
               id: "details",
               header: "Details",
               grow: true,
-              wrap: true,
               cell: (entry) => <p className="font-mono text-xs">{JSON.stringify(entry.details)}</p>,
             },
           ]}

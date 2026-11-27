@@ -46,7 +46,6 @@ async function TrainerInvites() {
                   id: "invite",
                   header: "Invite",
                   grow: true,
-                  wrap: true,
                   stackedLabel: false,
                   cell: (invite) => (
                     <>

@@ -29,7 +29,6 @@ export function PaymentHistory({ payments, timeZone }: { payments: readonly MyPa
             id: "plan",
             header: "Plan",
             grow: true,
-            wrap: true,
             cell: (payment) => <p className="font-medium">{payment.planName ?? "—"}</p>,
           },
           {
@@ -74,7 +73,6 @@ export function PastMemberships({ memberships, timeZone, now }: { memberships: r
             id: "plan",
             header: "Plan",
             grow: true,
-            wrap: true,
             cell: (membership) => <p className="font-medium">{membership.plan.name}</p>,
           },
           { id: "status", header: "Status", cell: (membership) => <PastStatusBadge status={pastEntry(membership).status} /> },

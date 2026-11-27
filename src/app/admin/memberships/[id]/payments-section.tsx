@@ -65,7 +65,6 @@ export function PaymentsSection({
               id: "history",
               header: "History",
               grow: true,
-              wrap: true,
               cell: (payment) => (
                 <ul className="flex flex-col gap-0.5">
                   {paymentHistoryLines(payment, timeZone).map((line) => (

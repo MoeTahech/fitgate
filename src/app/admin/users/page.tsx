@@ -60,7 +60,6 @@ async function UsersTable({ searchParams }: { searchParams: PageProps<"/admin/us
               id: "user",
               header: "User",
               grow: true,
-              wrap: true,
               stackedLabel: false,
               cell: (user) => (
                 <>

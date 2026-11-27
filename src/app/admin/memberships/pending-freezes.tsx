@@ -27,7 +27,6 @@ export async function PendingFreezes() {
               id: "member",
               header: "Member",
               grow: true,
-              wrap: true,
               stackedLabel: false,
               cell: (freeze) => (
                 <>

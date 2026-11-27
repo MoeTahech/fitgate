@@ -15,7 +15,6 @@ const COLUMNS: DataTableColumn<Row>[] = [
     header: "Email",
     grow: true,
     stackedLabel: false,
-    title: (row) => row.email,
     cell: (row) => <p>{row.email}</p>,
   },
   { id: "status", header: "Status", cell: (row) => row.status },
@@ -70,22 +69,14 @@ describe("DataTable", () => {
     expect(find(actions, byAttr("aria-hidden"))).toBeUndefined();
   });
 
-  it("wraps the grow column in card mode and truncates it only in table mode, with the full text as title", () => {
+  it("lets the grow column take the remaining width and wrap in both modes, never truncating it", () => {
     const email = elements(bodyRows()[0])[0];
-    expect(email.attrs.title).toBe(ROWS[0].email);
-    expect(classesOf(email)).toEqual(expect.arrayContaining(["wrap-anywhere", "@2xl/data-table:*:truncate"]));
-    expect(classesOf(email)).not.toContain("truncate");
-    expect(classesOf(email)).not.toContain("*:truncate");
-  });
-
-  it("wraps a grow column marked wrap in table mode too, so long notes are never cut off", () => {
-    const columns: DataTableColumn<Row>[] = [{ ...COLUMNS[0], wrap: true }, ...COLUMNS.slice(1)];
-    const root = renderMarkup(<DataTable label="Invites" rows={ROWS} rowKey={(row) => row.id} columns={columns} />);
-    const email = classesOf(elements(elements(find(root, byTag("tbody"))!)[0])[0]);
-    expect(email).toEqual(expect.arrayContaining(["wrap-anywhere", "@2xl/data-table:w-full"]));
-    expect(email).not.toContain("@2xl/data-table:*:truncate");
-    expect(email).not.toContain("@2xl/data-table:max-w-0");
-    expect(email).not.toContain("@2xl/data-table:whitespace-nowrap");
+    const classes = classesOf(email);
+    expect(classes).toEqual(expect.arrayContaining(["wrap-anywhere", "@2xl/data-table:w-full"]));
+    expect(classes.some((name) => name.includes("truncate"))).toBe(false);
+    expect(classes).not.toContain("@2xl/data-table:max-w-0");
+    expect(classes).not.toContain("@2xl/data-table:whitespace-nowrap");
+    expect(email.attrs.title).toBeUndefined();
   });
 
   it("keeps other columns on one line in table mode only", () => {

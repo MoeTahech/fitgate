@@ -156,8 +156,9 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   submits an existing form via `form` (id); pass `finalFocus` when the action can remove its own
   trigger, and show row-action results above the list, not in the row),
   `DataTable` (record lists: column config; a table when its container is at least `@2xl`
-  wide, a stack of cards below; a `grow` column truncates in table mode with `title`, wraps in
-  card mode); plus primitives `Button`/`buttonVariants` (links styled as buttons), `Card`,
+  wide, a stack of cards below; a `grow` column takes the remaining width and wraps, never
+  truncates, so keep the other columns few and narrow and fold secondary details into it as extra
+  lines); plus primitives `Button`/`buttonVariants` (links styled as buttons), `Card`,
   `Skeleton` (Suspense fallbacks).
 - Layout (`src/components/layout/`): `nav.ts` holds the nav config (`MAIN_NAV` with role
   filters, `ADMIN_NAV`; add new sections there) and link styles. `SiteHeader` (near-black bar,

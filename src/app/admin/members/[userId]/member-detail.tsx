@@ -93,7 +93,6 @@ function Memberships({ detail, now }: { detail: MemberDetail; now: Date }) {
               id: "plan",
               header: "Plan",
               grow: true,
-              wrap: true,
               stackedLabel: false,
               cell: (m) => (
                 <>
@@ -162,7 +161,6 @@ function Payments({ payments, timeZone, memberName }: { payments: readonly Admin
               id: "plan",
               header: "Plan",
               grow: true,
-              wrap: true,
               cell: (payment) =>
                 payment.membershipId ? (
                   <p>
@@ -204,7 +202,6 @@ function TrialsUsed({ detail }: { detail: MemberDetail }) {
             id: "trial",
             header: "Trial",
             grow: true,
-            wrap: true,
             stackedLabel: false,
             cell: (trial) => (
               <p>

@@ -119,7 +119,6 @@ export async function MembershipsList({ searchParams }: { searchParams: SearchPa
               id: "owner",
               header: "Owner",
               grow: true,
-              wrap: true,
               stackedLabel: false,
               cell: (m) => (
                 <>
