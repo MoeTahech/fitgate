@@ -77,6 +77,8 @@ All period math runs in the gym time zone and is DST-safe. Planned: recurring an
   - The accepter's verified email must match the invite. Sending an invite never
     reveals whether the email already holds a base seat; that is only checked at
     acceptance and shown to the accepter.
+  - The invite page prefills the invited email on sign-in and sign-up via the URL
+    (`email=` query param). Accepted for now; revisit at deployment for log exposure.
   - The owner or an admin can remove the partner, and the partner can leave; either
     frees the seat. Ending the membership ends all its seats and revokes its pending
     invite.
