@@ -213,7 +213,8 @@ limits and changes how periods end. The constants are fixed, not per plan length
   doesn't move it. Day Pass and Gym Trial (`CALENDAR_DAYS`) are unchanged. Extensions
   and freezes keep moving whole days: an extension moves the last day by the plan's
   months, a freeze by its length, and the new end is the closing time of the new last
-  day (end of day when closed).
+  day (end of day when closed). The closing time is read when the new end is computed
+  and stored, like Day Pass, so later opening-hour changes don't move it.
 
 ### Manual payments
 Admins can record payments made outside Stripe.

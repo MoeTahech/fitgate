@@ -350,4 +350,5 @@ Planned, not implemented here):
   until closing on 3 Dec; a monthly plan recorded 26 Nov 14:37 until closing on 26 Dec). On a
   closed last day the period ends at the end of that day. The end is stored, like Day Pass
   ends. Day Pass and Gym Trial are unchanged. Extensions and freezes keep moving whole days;
-  the new end is the closing time of the new last day.
+  the new end is the closing time of the new last day. The closing time is read when the new
+  end is computed and stored, like Day Pass, so later opening-hour changes don't move it.
