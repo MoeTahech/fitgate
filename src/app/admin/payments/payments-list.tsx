@@ -6,7 +6,6 @@ import { Pagination } from "@/components/pagination";
 import { PaymentStatusBadge, paymentStatusLabel } from "@/components/status-badge";
 import { TextLink } from "@/components/text-link";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NativeSelectOption } from "@/components/ui/native-select";
 import { requirePageUser } from "@/lib/auth/session";
 import { PAYMENT_METHOD_LABELS } from "@/lib/memberships-ui/labels";
@@ -16,9 +15,9 @@ import {
   PAYMENT_METHODS,
   PAYMENT_STATUSES,
   type PaymentListFilters,
-  type PaymentTotals,
 } from "@/lib/services/memberships/queries";
 import { formatLocal } from "@/lib/time";
+import { PaymentTotalsSummary } from "./payment-totals";
 
 type SearchParams = PageProps<"/admin/payments">["searchParams"];
 
@@ -88,37 +87,6 @@ function FilterForm({ filters }: { filters: PaymentListFilters }) {
   );
 }
 
-function TotalsCard({ totals }: { totals: PaymentTotals }) {
-  const currency = totals.currency.toUpperCase();
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{currency}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
-          <div>
-            <dt className="text-sm text-muted-foreground">Gross</dt>
-            <dd className="font-medium">{formatMoney(totals.grossCents, totals.currency)}</dd>
-          </div>
-          <div>
-            <dt className="text-sm text-muted-foreground">Refunded</dt>
-            <dd className="font-medium">{formatMoney(totals.refundedCents, totals.currency)}</dd>
-          </div>
-          <div>
-            <dt className="text-sm text-muted-foreground">Net</dt>
-            <dd className="font-medium">{formatMoney(totals.netCents, totals.currency)}</dd>
-          </div>
-          <div>
-            <dt className="text-sm text-muted-foreground">Payments</dt>
-            <dd className="font-medium">{totals.count}</dd>
-          </div>
-        </dl>
-      </CardContent>
-    </Card>
-  );
-}
-
 /** Every payment, filtered by method, status, and paid date, with totals per currency and paging that keeps the filters. */
 export async function PaymentsList({ searchParams }: { searchParams: SearchParams }) {
   const raw = await searchParams;
@@ -130,18 +98,7 @@ export async function PaymentsList({ searchParams }: { searchParams: SearchParam
     <>
       <FilterForm filters={filters} />
 
-      {totals.length > 0 ? (
-        <div className="mb-4 grid gap-4 md:grid-cols-2" aria-label="Totals, voided payments excluded">
-          {totals.map((entry) => (
-            <TotalsCard key={entry.currency} totals={entry} />
-          ))}
-        </div>
-      ) : null}
-
-      <p className="mb-2 text-sm text-muted-foreground">
-        {total} {total === 1 ? "payment" : "payments"}
-        {totals.length > 0 ? " · totals exclude voided, pending, and failed payments" : ""}
-      </p>
+      <PaymentTotalsSummary totals={totals} total={total} />
 
       {payments.length === 0 ? (
         <EmptyState title="No payments found" description={hasFilters(filters) ? "Try other filters." : undefined} />
