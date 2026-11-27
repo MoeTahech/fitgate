@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { byAttr, classesOf, find, renderMarkup, textOf } from "../../tests/support/markup";
 import {
   ACTION_FAILED_MESSAGE,
@@ -6,6 +6,7 @@ import {
   ActionResultsProvider,
   describeActionResult,
   regionOutcome,
+  settleAction,
   useActionResults,
   type ActionOutcome,
   type PendingAction,
@@ -58,6 +59,27 @@ describe("describeActionResult", () => {
   it("falls back to a generic retry message", () => {
     expect(describeActionResult({ status: "error" }, null)).toEqual({ tone: "error", text: ACTION_FAILED_MESSAGE });
     expect(describeActionResult({ status: "error", fieldErrors: {} }, null)).toEqual({ tone: "error", text: ACTION_FAILED_MESSAGE });
+  });
+});
+
+describe("settleAction", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("returns the action's outcome", async () => {
+    const formData = new FormData();
+    const action = vi.fn(async () => ({ status: "success", message: "Saved." }) satisfies ActionOutcome);
+    await expect(settleAction(action, { status: "idle" }, formData)).resolves.toEqual({ status: "success", message: "Saved." });
+    expect(action).toHaveBeenCalledWith({ status: "idle" }, formData);
+  });
+
+  it("turns a thrown error into the generic retry message", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const failure = new Error("connection lost");
+    const outcome = await settleAction(async () => Promise.reject(failure), { status: "idle" }, new FormData());
+    expect(outcome).toEqual({ status: "error", message: ACTION_FAILED_MESSAGE });
+    expect(logged).toHaveBeenCalledWith(expect.any(String), failure);
   });
 });
 

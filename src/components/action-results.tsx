@@ -49,15 +49,23 @@ type RunRequest = { action: RowAction; formData: FormData };
 type RunOptions = RunRequest & { key: string; pendingMessage: string };
 type ReportRequest = { outcome: ActionOutcome };
 
-async function runRowAction(_previous: ActionOutcome, request: RunRequest | ReportRequest): Promise<ActionOutcome> {
-  if ("outcome" in request) return request.outcome;
-  const { action, formData } = request;
+/**
+ * Runs an action for `useActionState`, which would rethrow a rejection during render and replace
+ * the page with the error boundary: a thrown error (network failure, unexpected server error)
+ * becomes the generic retry message instead.
+ */
+export async function settleAction(action: RowAction, previous: ActionOutcome, formData: FormData): Promise<ActionOutcome> {
   try {
-    return await action(IDLE, formData);
+    return await action(previous, formData);
   } catch (error) {
     console.error("[action-results] action failed", error);
     return { status: "error", message: ACTION_FAILED_MESSAGE };
   }
+}
+
+async function runRowAction(_previous: ActionOutcome, request: RunRequest | ReportRequest): Promise<ActionOutcome> {
+  if ("outcome" in request) return request.outcome;
+  return settleAction(request.action, IDLE, request.formData);
 }
 
 type ActionResultsValue = {
