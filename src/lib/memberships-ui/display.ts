@@ -1,5 +1,6 @@
 import type { FreezeStatus, MembershipStatus } from "@/generated/prisma/client";
-import type { OpenBaseView, RecordablePlan } from "@/lib/services/memberships/queries";
+import { formatMoney } from "@/lib/money";
+import type { MembershipDetailPayment, OpenBaseView, RecordablePlan } from "@/lib/services/memberships/queries";
 import { freezeDisplayStatus, type FreezeWindow } from "@/lib/services/memberships/rules";
 import { addDaysZoned, formatLocal, formatLocalTime, zonedParts } from "@/lib/time";
 import { CONFLICT_REASON_MESSAGES, switchLossText } from "./messages";
@@ -122,6 +123,47 @@ export function refundEffectText(
     return `Refunding the full amount withdraws the paid period. ${correctionEffect(payment, membership, timeZone, now)}`;
   }
   return "A partial refund changes only the amounts; the membership stays as it is.";
+}
+
+// ─── Payment history (admin only) ────────────────────────────────────────────
+
+type PaymentHistory = Pick<
+  MembershipDetailPayment,
+  | "recordedByName"
+  | "reference"
+  | "note"
+  | "voidedAt"
+  | "voidedByName"
+  | "voidReason"
+  | "refundedAt"
+  | "refundedByName"
+  | "refundReason"
+  | "amountRefundedCents"
+  | "currency"
+>;
+
+function actorName(name: string | null): string {
+  return name ?? "the system";
+}
+
+/**
+ * What happened to a payment, for the admin's membership page: who recorded it, its reference
+ * and note, and who voided or refunded it, when, and why. Never shown to members.
+ */
+export function paymentHistoryLines(p: PaymentHistory, timeZone: string): string[] {
+  const lines = [`Recorded by ${actorName(p.recordedByName)}`];
+  if (p.reference) lines.push(`Reference: ${p.reference}`);
+  if (p.note) lines.push(`Note: ${p.note}`);
+  if (p.voidedAt) {
+    const reason = p.voidReason ? `: ${p.voidReason}` : "";
+    lines.push(`Voided ${formatDay(p.voidedAt, timeZone)} by ${actorName(p.voidedByName)}${reason}`);
+  }
+  if (p.refundedAt) {
+    const reason = p.refundReason ? `: ${p.refundReason}` : "";
+    const amount = formatMoney(p.amountRefundedCents, p.currency);
+    lines.push(`Refunded ${amount} on ${formatDay(p.refundedAt, timeZone)} by ${actorName(p.refundedByName)}${reason}`);
+  }
+  return lines;
 }
 
 // ─── Record payment ──────────────────────────────────────────────────────────

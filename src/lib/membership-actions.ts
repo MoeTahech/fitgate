@@ -27,7 +27,11 @@ type RunOptions<S extends z.ZodType> = {
   /** `member` needs a signed-in user, `admin` the ADMIN role; also picks the error copy. */
   audience: MessageAudience;
   formData: FormData;
-  schema: S;
+  /**
+   * The form schema, or a function that builds it after the actor is checked (e.g. from data looked
+   * up on the server); a `MembershipError` it throws becomes the result like a service error.
+   */
+  schema: S | ((formData: FormData) => Promise<S>);
   /** Fields the form shows; errors on any other field are reported as the message. */
   visibleFields: readonly string[];
   perform: (data: z.output<S>, context: ActionContext) => Promise<ActionResult>;
@@ -56,17 +60,28 @@ export async function runMembershipAction<S extends z.ZodType>({
     throw error;
   }
 
-  const parsed = parseForm(schema, formData);
+  const failed = (error: unknown): ActionResult => {
+    const mapped = toMembershipError(error);
+    if (!(mapped instanceof MembershipError)) throw mapped;
+    if (refreshOnError?.(mapped)) refresh();
+    return membershipErrorResult(mapped, audience);
+  };
+
+  let formSchema: S;
+  try {
+    formSchema = typeof schema === "function" ? await schema(formData) : schema;
+  } catch (error) {
+    return failed(error);
+  }
+
+  const parsed = parseForm(formSchema, formData);
   if (!parsed.success) return invalidForm(parsed.fieldErrors, visibleFields);
 
   let result: ActionResult;
   try {
     result = await perform(parsed.data, { user, ipHash: await getRequestIpHash() });
   } catch (error) {
-    const mapped = toMembershipError(error);
-    if (!(mapped instanceof MembershipError)) throw mapped;
-    if (refreshOnError?.(mapped)) refresh();
-    return membershipErrorResult(mapped, audience);
+    return failed(error);
   }
   refresh();
   return result;

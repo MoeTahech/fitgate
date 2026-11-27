@@ -151,15 +151,19 @@ describe("getMyMemberships", () => {
     expect(JSON.stringify(view)).not.toContain(other.membershipId);
   });
 
-  it("shows the owner's payments without notes or references", async () => {
-    const { member, paymentId } = await manualMembership({ note: "Paid at the desk" });
+  it("shows the owner's payments without notes, references, reasons, or staff names", async () => {
+    const { admin, member, paymentId } = await manualMembership({ note: "Paid at the desk" });
+    await refundPayment({ actorId: admin.id, paymentId, amountCents: 1000, reason: "Goodwill" });
 
     signInAs(member);
     const [payment] = (await getMyMemberships()).payments;
 
-    expect(payment).toMatchObject({ id: paymentId, planName: "Basic", status: "SUCCEEDED", amountCents: 3000, paidAt: NOW });
-    expect(payment).not.toHaveProperty("note");
-    expect(payment).not.toHaveProperty("reference");
+    expect(payment).toMatchObject({ id: paymentId, planName: "Basic", status: "PARTIALLY_REFUNDED", amountRefundedCents: 1000, paidAt: NOW });
+    for (const field of ["note", "reference", "voidReason", "refundReason", "recordedByName", "voidedByName", "refundedByName"]) {
+      expect(payment).not.toHaveProperty(field);
+    }
+    expect(JSON.stringify(payment)).not.toContain("Goodwill");
+    expect(JSON.stringify(payment)).not.toContain("Paid at the desk");
   });
 
   it("shows the owner the partner, and the partner the owner but none of the owner's payments", async () => {

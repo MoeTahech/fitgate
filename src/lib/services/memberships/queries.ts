@@ -1059,6 +1059,18 @@ export async function getMembershipDetail(membershipId: string): Promise<Members
   };
 }
 
+/**
+ * The currency of a payment, for parsing a refund amount typed in currency units. The form never
+ * sends the currency; null when the payment doesn't exist.
+ */
+export async function getPaymentCurrency(paymentId: string): Promise<string | null> {
+  await requireRole("ADMIN");
+  const parsed = z.uuid().safeParse(paymentId);
+  if (!parsed.success) return null;
+  const payment = await db.payment.findUnique({ where: { id: parsed.data }, select: { currency: true } });
+  return payment?.currency ?? null;
+}
+
 // ─── Admin: payments ─────────────────────────────────────────────────────────
 
 const paymentListQuery = z.object({

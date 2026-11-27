@@ -7,6 +7,11 @@ export type DataTableColumn<T> = {
   cell: (row: T) => ReactNode;
   /** Takes the remaining width. Table mode truncates each child line; card mode wraps them. */
   grow?: boolean;
+  /**
+   * With `grow`: wraps in table mode too, instead of truncating. For text that must be read in
+   * full, such as notes and reasons; keep the other columns few and narrow so it has room.
+   */
+  wrap?: boolean;
   /** Full text for the cell's `title`, so truncated values stay readable on hover. */
   title?: (row: T) => string;
   /** `end` right-aligns the cell in table mode only. */
@@ -83,9 +88,11 @@ function DataTableCell<T>({ column, row }: { column: DataTableColumn<T>; row: T 
       className={cn(
         "block min-w-0 @2xl/data-table:table-cell @2xl/data-table:px-4 @2xl/data-table:py-3 @2xl/data-table:align-middle",
         empty && "hidden",
-        column.grow
-          ? "wrap-anywhere @2xl/data-table:w-full @2xl/data-table:max-w-0 @2xl/data-table:*:truncate"
-          : "@2xl/data-table:whitespace-nowrap",
+        column.grow && column.wrap
+          ? "wrap-anywhere @2xl/data-table:w-full"
+          : column.grow
+            ? "wrap-anywhere @2xl/data-table:w-full @2xl/data-table:max-w-0 @2xl/data-table:*:truncate"
+            : "@2xl/data-table:whitespace-nowrap",
       )}
     >
       {showLabel ? (

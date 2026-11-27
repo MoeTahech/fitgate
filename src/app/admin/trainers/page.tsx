@@ -43,24 +43,21 @@ async function TrainerInvites() {
               rowKey={(invite) => invite.id}
               columns={[
                 {
-                  id: "email",
-                  header: "Email",
+                  id: "invite",
+                  header: "Invite",
                   grow: true,
+                  wrap: true,
                   stackedLabel: false,
-                  title: (invite) => invite.email,
-                  cell: (invite) => <p className="font-medium">{invite.email}</p>,
-                },
-                { id: "status", header: "Status", cell: (invite) => <InviteStatusBadge status={invite.status} /> },
-                {
-                  id: "invited",
-                  header: "Invited",
                   cell: (invite) => (
                     <>
-                      <p>{formatLocal(invite.createdAt, timeZone)}</p>
-                      <p className="text-muted-foreground">by {invite.invitedByName}</p>
+                      <p className="font-medium">{invite.email}</p>
+                      <p className="text-muted-foreground">
+                        Invited {formatLocal(invite.createdAt, timeZone)} by {invite.invitedByName}
+                      </p>
                     </>
                   ),
                 },
+                { id: "status", header: "Status", cell: (invite) => <InviteStatusBadge status={invite.status} /> },
                 {
                   id: "expires",
                   header: "Expires",

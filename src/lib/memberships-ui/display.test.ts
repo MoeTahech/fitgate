@@ -10,6 +10,7 @@ import {
   freezeLastDay,
   pastEntry,
   periodText,
+  paymentHistoryLines,
   recordPaymentNotice,
   refundEffectText,
 } from "./display";
@@ -185,12 +186,59 @@ describe("correctionEffect and refundEffectText", () => {
     expect(refundEffectText(3000, payment(at(-40 * DAY)), running(), TZ, NOW)).toContain("This cancels the membership.");
   });
 
+  it("a full refund on an ended membership leaves it as it is", () => {
+    const text = refundEffectText(3000, payment(at(-40 * DAY)), running("EXPIRED"), TZ, NOW);
+    expect(text).toContain("The membership has ended, so it stays as it is.");
+  });
+
   it("a partial or unparsed amount changes only the amounts", () => {
     const p = payment(at(-40 * DAY));
     for (const amount of [1, 2999, null]) {
       const text = refundEffectText(amount, p, running(), TZ, NOW);
       expect(text).toBe("A partial refund changes only the amounts; the membership stays as it is.");
     }
+  });
+});
+
+describe("paymentHistoryLines", () => {
+  const recorded = {
+    recordedByName: "Front Desk",
+    reference: null,
+    note: null,
+    voidedAt: null,
+    voidedByName: null,
+    voidReason: null,
+    refundedAt: null,
+    refundedByName: null,
+    refundReason: null,
+    amountRefundedCents: 0,
+    currency: "usd",
+  };
+
+  it("names who recorded the payment, with its reference and note", () => {
+    expect(paymentHistoryLines({ ...recorded, reference: "TX-42", note: "Paid at the desk" }, TZ)).toEqual([
+      "Recorded by Front Desk",
+      "Reference: TX-42",
+      "Note: Paid at the desk",
+    ]);
+  });
+
+  it("shows who voided the payment, when, and why", () => {
+    const voided = { ...recorded, voidedAt: NOW, voidedByName: "MoeTahech", voidReason: "Recorded By Mistake" };
+    expect(paymentHistoryLines(voided, TZ)).toEqual(["Recorded by Front Desk", "Voided 2 Dec 2026 by MoeTahech: Recorded By Mistake"]);
+  });
+
+  it("shows the refunded amount, who refunded it, when, and why", () => {
+    const refunded = { ...recorded, refundedAt: NOW, refundedByName: "MoeTahech", refundReason: "Goodwill", amountRefundedCents: 1250 };
+    expect(paymentHistoryLines(refunded, TZ)).toEqual([
+      "Recorded by Front Desk",
+      "Refunded US$12.50 on 2 Dec 2026 by MoeTahech: Goodwill",
+    ]);
+  });
+
+  it("names the system when no person acted", () => {
+    const voided = { ...recorded, recordedByName: null, voidedAt: NOW, voidReason: null };
+    expect(paymentHistoryLines(voided, TZ)).toEqual(["Recorded by the system", "Voided 2 Dec 2026 by the system"]);
   });
 });
 

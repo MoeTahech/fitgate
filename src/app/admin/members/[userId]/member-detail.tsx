@@ -93,17 +93,19 @@ function Memberships({ detail, now }: { detail: MemberDetail; now: Date }) {
               id: "plan",
               header: "Plan",
               grow: true,
+              wrap: true,
               stackedLabel: false,
-              title: (m) => m.plan.name,
               cell: (m) => (
-                <p>
-                  <TextLink href={membershipHref(m.id)}>{m.plan.name}</TextLink>
-                </p>
+                <>
+                  <p>
+                    <TextLink href={membershipHref(m.id)}>{m.plan.name}</TextLink>
+                  </p>
+                  <p className="text-muted-foreground">{seatText(m, member.id)}</p>
+                </>
               ),
             },
             { id: "status", header: "Status", cell: (m) => <MembershipStatusBadge status={m.status} /> },
             { id: "period", header: "Period", cell: (m) => periodText(m, timeZone, now) },
-            { id: "seat", header: "Seat", cell: (m) => seatText(m, member.id) },
             { id: "credits", header: "Credits", cell: (m) => m.creditBalance },
           ]}
         />
@@ -140,12 +142,27 @@ function Payments({ payments, timeZone, memberName }: { payments: readonly Admin
           rows={payments}
           rowKey={(payment) => payment.id}
           columns={[
-            { id: "paid", header: "Paid", cell: (payment) => (payment.paidAt ? formatDay(payment.paidAt, timeZone) : "—") },
+            {
+              id: "payment",
+              header: "Payment",
+              cell: (payment) => (
+                <>
+                  <p className="font-medium">{formatMoney(payment.amountCents, payment.currency)}</p>
+                  {payment.amountRefundedCents > 0 ? (
+                    <p className="text-muted-foreground">Refunded {formatMoney(payment.amountRefundedCents, payment.currency)}</p>
+                  ) : null}
+                  <p className="text-muted-foreground">
+                    {PAYMENT_METHOD_LABELS[payment.method]}
+                    {payment.paidAt ? `, ${formatDay(payment.paidAt, timeZone)}` : ""}
+                  </p>
+                </>
+              ),
+            },
             {
               id: "plan",
               header: "Plan",
               grow: true,
-              title: (payment) => payment.planName ?? "",
+              wrap: true,
               cell: (payment) =>
                 payment.membershipId ? (
                   <p>
@@ -155,22 +172,17 @@ function Payments({ payments, timeZone, memberName }: { payments: readonly Admin
                   <p>{payment.planName ?? "—"}</p>
                 ),
             },
+            { id: "status", header: "Status", cell: (payment) => <PaymentStatusBadge status={payment.status} /> },
             {
-              id: "amount",
-              header: "Amount",
+              id: "recorded",
+              header: "Recorded by",
               cell: (payment) => (
                 <>
-                  <p>{formatMoney(payment.amountCents, payment.currency)}</p>
-                  {payment.amountRefundedCents > 0 ? (
-                    <p className="text-muted-foreground">Refunded {formatMoney(payment.amountRefundedCents, payment.currency)}</p>
-                  ) : null}
+                  <p>{payment.recordedByName ?? "System"}</p>
+                  {payment.reference ? <p className="text-muted-foreground">Ref. {payment.reference}</p> : null}
                 </>
               ),
             },
-            { id: "method", header: "Method", cell: (payment) => PAYMENT_METHOD_LABELS[payment.method] },
-            { id: "reference", header: "Reference", cell: (payment) => payment.reference },
-            { id: "status", header: "Status", cell: (payment) => <PaymentStatusBadge status={payment.status} /> },
-            { id: "recorded", header: "Recorded by", cell: (payment) => payment.recordedByName },
           ]}
         />
       )}
@@ -192,8 +204,8 @@ function TrialsUsed({ detail }: { detail: MemberDetail }) {
             id: "trial",
             header: "Trial",
             grow: true,
+            wrap: true,
             stackedLabel: false,
-            title: (trial) => TRIAL_KIND_LABELS[trial.kind],
             cell: (trial) => (
               <p>
                 <TextLink href={membershipHref(trial.membershipId)}>{TRIAL_KIND_LABELS[trial.kind]}</TextLink>

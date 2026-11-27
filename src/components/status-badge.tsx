@@ -19,6 +19,11 @@ const MEMBERSHIP_STATUS: Record<MembershipStatus, StatusDisplay> = {
   EXPIRED: { tone: "expired", label: "Expired" },
 };
 
+/** The badge's label, for places that name a status without the pill (e.g. a filter option). */
+export function membershipStatusLabel(status: MembershipStatus): string {
+  return MEMBERSHIP_STATUS[status].label;
+}
+
 export function MembershipStatusBadge({ status }: { status: MembershipStatus }) {
   const { tone, label } = MEMBERSHIP_STATUS[status];
   return <StatusBadge tone={tone}>{label}</StatusBadge>;

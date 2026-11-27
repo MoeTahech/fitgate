@@ -1,6 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { byTag, classesOf, find, renderMarkup, textOf } from "../../tests/support/markup";
-import { TextareaField } from "./form-field";
+import { byAttr, byTag, classesOf, find, findAll, renderMarkup, textOf } from "../../tests/support/markup";
+import { CheckboxField, TextareaField } from "./form-field";
+
+describe("CheckboxField", () => {
+  it("renders a native checkbox labelled by its label element, submitting its value under its name", () => {
+    const root = renderMarkup(<CheckboxField id="expiring" name="expiring" value="true" label="Ending soon" defaultChecked />);
+    const label = find(root, byTag("label"));
+    const inputs = findAll(root, byTag("input"));
+    expect(inputs).toHaveLength(1);
+    const [checkbox] = inputs;
+    expect(checkbox.attrs).toMatchObject({ id: "expiring", type: "checkbox", name: "expiring", value: "true" });
+    expect(checkbox.attrs).toHaveProperty("checked");
+    expect(textOf(label!)).toBe("Ending soon");
+    expect(label?.attrs.for).toBe("expiring");
+    expect(checkbox.attrs).not.toHaveProperty("aria-labelledby");
+    expect(checkbox.attrs).not.toHaveProperty("role");
+    expect(find(root, byAttr("role", "checkbox"))).toBeUndefined();
+  });
+
+  it("starts unchecked by default and uses the brand token for its color", () => {
+    const checkbox = find(renderMarkup(<CheckboxField id="expiring" name="expiring" label="Ending soon" />), byTag("input"));
+    expect(checkbox?.attrs).not.toHaveProperty("checked");
+    expect(classesOf(checkbox)).toEqual(expect.arrayContaining(["accent-primary", "focus-visible:ring-ring"]));
+  });
+});
 
 describe("TextareaField", () => {
   it("labels the textarea and passes its props through", () => {

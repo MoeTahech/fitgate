@@ -77,8 +77,8 @@ export async function MembersList({ searchParams }: { searchParams: SearchParams
               id: "member",
               header: "Member",
               grow: true,
+              wrap: true,
               stackedLabel: false,
-              title: (member) => `${member.name}\n${member.email}`,
               cell: (member) => (
                 <>
                   <p>
