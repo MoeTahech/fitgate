@@ -32,7 +32,8 @@ Example plans: Basic (open access), Premium (open + unlimited classes),
 Day Pass (open access until closing), Class Pack (add-on, see below).
 
 ### Plan periods
-All period math runs in the gym time zone and is DST-safe.
+All period math runs in the gym time zone and is DST-safe. Planned: recurring and
+`ROLLING` periods will end at closing time on their last day (see Membership usage limits).
 - **Recurring:** the period ends `intervalMonths` calendar months after it starts,
   at the same local time (clamped to the last day of a shorter month).
 - **One-time `ROLLING`:** ends `durationDays` later at the same local time
@@ -191,7 +192,7 @@ Stripe webhooks.
 
 ### Membership usage limits (Planned)
 Not built yet. One follow-up PR after the pages PR ("membership usage limits") adds two
-limits. The constants are fixed, not per plan length.
+limits and changes how periods end. The constants are fixed, not per plan length.
 - **Partner cooldown.** After a Couples partner seat ends (the partner left or the owner
   removed them), a new partner can join only after `PARTNER_CHANGE_COOLDOWN_DAYS = 15`
   days. The invite form shows the date from which a partner can be invited. Admins can
@@ -201,6 +202,18 @@ limits. The constants are fixed, not per plan length.
   the last 12 months. Approved and completed freezes count; cancelled, rejected, and
   lapsed requests don't. Each freeze still lasts 1 to 30 days. The freeze request form
   shows how many freeze days are left.
+- **End-of-day period ends.** Recurring and one-time `ROLLING` plans end at the closing
+  time of their last local day instead of at the start's local time. The last day is
+  the one Plan periods gives today (`intervalMonths` months or `durationDays` days after
+  the start day). For example, a Class Trial started 26 Nov at 21:17 is valid until
+  closing on 3 Dec, and a monthly plan recorded 26 Nov at 14:37 is valid until closing
+  on 26 Dec. If the gym is closed on the last day, the period ends at the end of that
+  local day. The period start stays the exact start time. Like `CALENDAR_DAYS` ends, the
+  end is computed from the opening hours and stored; a later change to the opening hours
+  doesn't move it. Day Pass and Gym Trial (`CALENDAR_DAYS`) are unchanged. Extensions
+  and freezes keep moving whole days: an extension moves the last day by the plan's
+  months, a freeze by its length, and the new end is the closing time of the new last
+  day (end of day when closed).
 
 ### Manual payments
 Admins can record payments made outside Stripe.
@@ -389,8 +402,9 @@ indexes live as raw SQL in the migrations.
         `docs/plans/ui-foundation.md`). Done.
      3. Pages PR: member membership page, admin members, memberships, and
         payments pages.
-     4. Membership usage limits (Planned): partner cooldown and yearly freeze cap
-        (see Membership usage limits). One follow-up PR after the pages PR.
+     4. Membership usage limits (Planned): partner cooldown, yearly freeze cap, and
+        end-of-day period ends (see Membership usage limits). One follow-up PR after
+        the pages PR.
    - **2b — Stripe:** Checkout, subscriptions (incl. multi-month plans and promo
      codes), webhooks, Stripe-driven membership status, Stripe purchase of
      couples plans, Stripe membership freezes (pause in Stripe).

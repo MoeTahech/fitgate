@@ -345,3 +345,9 @@ Planned, not implemented here):
 - **Freeze cap:** at most `MAX_FREEZE_DAYS_PER_YEAR = 60` freeze days per membership over the
   last 12 months. Approved and completed freezes count; cancelled, rejected, and lapsed ones
   don't. Each freeze is still 1–30 days. The freeze form shows the days left.
+- **End-of-day period ends:** recurring and rolling plans end at closing time on their last
+  local day instead of at the exact start time (a Class Trial started 26 Nov 21:17 is valid
+  until closing on 3 Dec; a monthly plan recorded 26 Nov 14:37 until closing on 26 Dec). On a
+  closed last day the period ends at the end of that day. The end is stored, like Day Pass
+  ends. Day Pass and Gym Trial are unchanged. Extensions and freezes keep moving whole days;
+  the new end is the closing time of the new last day.
