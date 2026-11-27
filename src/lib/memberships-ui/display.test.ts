@@ -179,24 +179,31 @@ describe("correctionEffect and refundEffectText", () => {
     expect(correctionEffect(payment(at(-40 * DAY)), running(status), TZ, NOW)).toBe("The membership has ended, so it stays as it is.");
   });
 
+  const refundable = (periodStart: Date | null, canRefundFull = true) => ({ ...payment(periodStart), canRefundFull });
+  const PARTIAL = "A partial refund changes only the amounts; the membership stays as it is.";
+
   it("a full refund says what a void says", () => {
-    const p = payment(new Date("2026-12-20T08:00:00.000Z"));
+    const p = refundable(new Date("2026-12-20T08:00:00.000Z"));
     const text = refundEffectText(3000, p, running(), TZ, NOW);
     expect(text).toContain(correctionEffect(p, running(), TZ, NOW));
-    expect(refundEffectText(3000, payment(at(-40 * DAY)), running(), TZ, NOW)).toContain("This cancels the membership.");
+    expect(refundEffectText(3000, refundable(at(-40 * DAY)), running(), TZ, NOW)).toContain("This cancels the membership.");
   });
 
   it("a full refund on an ended membership leaves it as it is", () => {
-    const text = refundEffectText(3000, payment(at(-40 * DAY)), running("EXPIRED"), TZ, NOW);
+    const text = refundEffectText(3000, refundable(at(-40 * DAY)), running("EXPIRED"), TZ, NOW);
     expect(text).toContain("The membership has ended, so it stays as it is.");
   });
 
   it("a partial or unparsed amount changes only the amounts", () => {
-    const p = payment(at(-40 * DAY));
+    const p = refundable(at(-40 * DAY));
     for (const amount of [1, 2999, null]) {
-      const text = refundEffectText(amount, p, running(), TZ, NOW);
-      expect(text).toBe("A partial refund changes only the amounts; the membership stays as it is.");
+      expect(refundEffectText(amount, p, running(), TZ, NOW)).toBe(PARTIAL);
     }
+  });
+
+  it("never describes a full refund for a payment that can't be refunded in full", () => {
+    const text = refundEffectText(3000, refundable(new Date("2026-12-20T08:00:00.000Z"), false), running(), TZ, NOW);
+    expect(text).toBe(PARTIAL);
   });
 });
 

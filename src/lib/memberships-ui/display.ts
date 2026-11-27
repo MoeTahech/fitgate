@@ -110,16 +110,17 @@ export function correctionEffect(payment: CorrectedPayment, membership: Correcte
 
 /**
  * The refund dialog's description for the amount typed so far: a full refund withdraws the paid
- * period like a void; a partial one (or an amount not parsed yet) changes only the amounts.
+ * period like a void; a partial one (or an amount not parsed yet) changes only the amounts. A
+ * payment that can't be refunded in full (`canRefundFull`) only ever gets the partial text.
  */
 export function refundEffectText(
   amountCents: number | null,
-  payment: CorrectedPayment,
+  payment: CorrectedPayment & { canRefundFull: boolean },
   membership: CorrectedMembership,
   timeZone: string,
   now: Date,
 ): string {
-  if (amountCents !== null && amountCents === payment.amountCents) {
+  if (payment.canRefundFull && amountCents !== null && amountCents === payment.amountCents) {
     return `Refunding the full amount withdraws the paid period. ${correctionEffect(payment, membership, timeZone, now)}`;
   }
   return "A partial refund changes only the amounts; the membership stays as it is.";

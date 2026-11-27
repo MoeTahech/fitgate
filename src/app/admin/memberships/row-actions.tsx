@@ -189,7 +189,7 @@ export function RefundPaymentButton({ target }: { target: RefundTarget }) {
   const typedCents = parseAmountToCents(amount, target.currency);
   const effect = refundEffectText(
     typedCents,
-    { periodStart: target.periodStart, amountCents: target.amountCents },
+    { periodStart: target.periodStart, amountCents: target.amountCents, canRefundFull: target.canRefundFull },
     target.membership,
     target.timeZone,
     target.now,
