@@ -691,4 +691,31 @@ describe("listPayments", () => {
     expect(await ids({ from: "2026-12-01" })).toEqual([earlyDec2.paymentId, lateDec1.paymentId]);
     expect((await listPayments({ from: "2026-02-30" })).filters.from).toBeNull();
   });
+
+  it("includes the whole last local day when it ends a month or a year", async () => {
+    const admin = await createUser({ role: "ADMIN" });
+    vi.setSystemTime(new Date("2026-12-31T19:55:00.000Z"));
+    const lateDec31 = await manualMembership({ admin });
+    vi.setSystemTime(NOW);
+
+    signInAs(admin);
+    const result = await listPayments({ from: "2026-12-31", to: "2026-12-31" });
+    expect(result.payments.map((p) => p.id)).toEqual([lateDec31.paymentId]);
+    expect(result.totals).toEqual([{ currency: "usd", grossCents: 3000, refundedCents: 0, netCents: 3000, count: 1 }]);
+  });
+
+  it("ignores invalid filters and returns an empty list when from is after to", async () => {
+    const admin = await createUser({ role: "ADMIN" });
+    await manualMembership({ admin });
+
+    signInAs(admin);
+    const invalid = await listPayments({ status: "FOO", method: "BAR", from: "garbage", to: "2026-13-45", page: "abc" });
+    expect(invalid.filters).toEqual({ method: null, status: null, from: null, to: null });
+    expect(invalid.page).toBe(1);
+    expect(invalid.total).toBe(1);
+
+    const reversed = await listPayments({ from: "2026-12-10", to: "2026-12-01" });
+    expect(reversed.payments).toEqual([]);
+    expect(reversed.totals).toEqual([]);
+  });
 });

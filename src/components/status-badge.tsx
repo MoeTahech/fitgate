@@ -64,6 +64,11 @@ const PAYMENT_STATUS: Record<PaymentStatus, StatusDisplay> = {
   DISPUTED: { tone: "past-due", label: "Disputed" },
 };
 
+/** The badge's label, for places that name a payment status without the pill (e.g. a filter option). */
+export function paymentStatusLabel(status: PaymentStatus): string {
+  return PAYMENT_STATUS[status].label;
+}
+
 export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {
   const { tone, label } = PAYMENT_STATUS[status];
   return <StatusBadge tone={tone}>{label}</StatusBadge>;
