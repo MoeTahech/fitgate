@@ -143,7 +143,9 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   every `MembershipErrorCode`, so a new code fails `tsc`); `forms.ts` (schemas shared by client
   and server, `ActionResult`); `use-membership-form.ts` (`useMembershipForm(action, schema)` for
   forms with fields: dispatches the action itself so a failed submit keeps what was typed, resets
-  only after success).
+  only after success; `onStart`/`onSettled` options hand the pending text and outcome to an
+  `ActionResultsProvider`'s `announce`/`report` when the form may unmount on success, as the member
+  freeze-request and invite forms do).
 - `src/lib/money.ts`: `formatMoney`, `parseAmountToCents` (strict decimal, currency-aware),
   `centsToAmountInput`. Forms take currency units.
 - `getRequestIp()` (`src/lib/request-ip.ts`): raw client IP, only for `startTrialAction`'s

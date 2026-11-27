@@ -69,6 +69,10 @@ const detail = (root: ReturnType<typeof render>, term: string) => {
   return index === -1 ? undefined : textOf(findAll(root, byTag("dd"))[index]);
 };
 
+/** The form holding the named field. */
+const formWith = (root: ReturnType<typeof render>, name: string) =>
+  findAll(root, byTag("form")).find((form) => find(form, byAttr("name", name)));
+
 const FREEZE: MyFreeze = {
   id: "0190f2a0-0000-7000-8000-0000000000f1",
   status: "APPROVED",
@@ -144,6 +148,13 @@ describe("MembershipCard as the owner", () => {
     expect(buttonLabels(root)).toContain("Send invite");
   });
 
+  it("submits the invite form by script, so a refused invite keeps the email", () => {
+    const form = formWith(render({ canInvite: true }), "email");
+    expect(form).toBeDefined();
+    expect(form?.attrs.action).toBeUndefined();
+    expect(form?.attrs.noValidate).toBeDefined();
+  });
+
   it("shows the pending invite with Resend and Revoke instead of the invite form", () => {
     const root = render({
       canInvite: true,
@@ -180,6 +191,13 @@ describe("MembershipCard freezes", () => {
     expect(last?.attrs.type).toBe("date");
     expect(first?.attrs.min).toBe("2026-12-04");
     expect(buttonLabels(root)).toContain("Request freeze");
+  });
+
+  it("submits the freeze request form by script, so a refused request keeps the dates", () => {
+    const form = formWith(render({ freezeRequest: request }), "firstDay");
+    expect(form).toBeDefined();
+    expect(form?.attrs.action).toBeUndefined();
+    expect(form?.attrs.noValidate).toBeDefined();
   });
 
   it("lists the freezes with their dates and status", () => {

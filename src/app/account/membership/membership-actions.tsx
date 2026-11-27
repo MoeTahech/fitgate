@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent, type RefObject } from "react";
+import type { FormEvent } from "react";
+import type { z } from "zod";
 import { useActionResults, type RowAction } from "@/components/action-results";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { InputField } from "@/components/form-field";
 import { SubmitButton } from "@/components/submit-button";
-import { firstInvalidControl, showFieldErrors } from "@/lib/forms/field-errors";
-import { freezeRequestFormSchema, inviteFormSchema, parseForm } from "@/lib/memberships-ui/forms";
+import { freezeRequestFormSchema, inviteFormSchema } from "@/lib/memberships-ui/forms";
+import { useMembershipForm } from "@/lib/memberships-ui/use-membership-form";
 import {
   cancelFreezeAction,
   createInviteAction,
@@ -25,27 +26,26 @@ function submitTo(run: Run, key: string, pendingMessage: string, action: RowActi
 }
 
 /**
- * Server field errors for this form's fields, from the last row action's result. The form's
- * submit goes through `run`, so a success or delivery message survives the refresh that removes
- * the form; only the errors that belong to a field are shown on it (and focused).
+ * A member form with fields: its own values, errors, pending state and focus
+ * (`useMembershipForm`), and its message in the page's results region, which survives the refresh
+ * that removes the form (a sent invite replaces the invite form).
  */
-function useFormErrors(form: RefObject<HTMLFormElement | null>, fields: readonly string[]) {
-  const { result } = useActionResults();
-  const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
+function useMemberForm<S extends z.ZodType>(action: RowAction, schema: S, key: string, pendingMessage: string) {
+  const { announce, report } = useActionResults();
+  const form = useMembershipForm(action, schema, {
+    onStart: () => announce({ key, message: pendingMessage }),
+    onSettled: report,
+  });
 
-  const serverErrors = useMemo(() => {
-    const errors = result.status === "error" ? (result.fieldErrors ?? {}) : {};
-    return Object.fromEntries(Object.entries(errors).filter(([field]) => fields.includes(field)));
-  }, [result, fields]);
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (form.pending) return;
+    const element = event.currentTarget;
+    if (!form.validate(element)) return;
+    form.submit(element);
+  }
 
-  useEffect(() => {
-    const controls = form.current ? Array.from(form.current.elements) : [];
-    const named = controls.filter((control): control is HTMLInputElement => "name" in control && "focus" in control);
-    firstInvalidControl(named, serverErrors)?.focus();
-  }, [form, serverErrors]);
-
-  const errors = Object.keys(clientErrors).length > 0 ? clientErrors : serverErrors;
-  return { errors, setClientErrors };
+  return { ...form, onSubmit };
 }
 
 // ─── Trials ──────────────────────────────────────────────────────────────────
@@ -155,33 +155,16 @@ export function InviteRowActions({ inviteId, email }: { inviteId: string; email:
   );
 }
 
-const INVITE_FIELDS = ["email"] as const;
-
 export function InviteForm({ membershipId }: { membershipId: string }) {
-  const { run, pendingKey } = useActionResults();
-  const formRef = useRef<HTMLFormElement>(null);
-  const { errors, setClientErrors } = useFormErrors(formRef, INVITE_FIELDS);
-  const pending = pendingKey === "invite";
-
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
-    const form = event.currentTarget;
-    const parsed = parseForm(inviteFormSchema, new FormData(form));
-    if (parsed.success) {
-      setClientErrors({});
-      return;
-    }
-    event.preventDefault();
-    showFieldErrors(form, parsed.fieldErrors, setClientErrors);
-  }
+  const { formRef, pending, errors, onSubmit } = useMemberForm(
+    createInviteAction,
+    inviteFormSchema,
+    `invite:${membershipId}`,
+    "Sending the invite…",
+  );
 
   return (
-    <form
-      ref={formRef}
-      noValidate
-      action={submitTo(run, "invite", "Sending the invite…", createInviteAction)}
-      onSubmit={onSubmit}
-      className="flex flex-col gap-3"
-    >
+    <form ref={formRef} noValidate onSubmit={onSubmit} className="flex flex-col gap-3">
       <input type="hidden" name="membershipId" value={membershipId} />
       <InputField
         id={`invite-email-${membershipId}`}
@@ -229,8 +212,6 @@ export function CancelFreezeButton({ freezeId, approved, daysText }: { freezeId:
   );
 }
 
-const FREEZE_FIELDS = ["firstDay", "lastDay"] as const;
-
 /** `earliestStart` is a local date (YYYY-MM-DD); `earliestLabel` the same date for reading. */
 export function FreezeRequestForm({
   membershipId,
@@ -243,30 +224,15 @@ export function FreezeRequestForm({
   earliestLabel: string;
   maxDays: number;
 }) {
-  const { run, pendingKey } = useActionResults();
-  const formRef = useRef<HTMLFormElement>(null);
-  const { errors, setClientErrors } = useFormErrors(formRef, FREEZE_FIELDS);
-  const pending = pendingKey === "freeze-request";
-
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
-    const form = event.currentTarget;
-    const parsed = parseForm(freezeRequestFormSchema, new FormData(form));
-    if (parsed.success) {
-      setClientErrors({});
-      return;
-    }
-    event.preventDefault();
-    showFieldErrors(form, parsed.fieldErrors, setClientErrors);
-  }
+  const { formRef, pending, errors, onSubmit } = useMemberForm(
+    requestFreezeAction,
+    freezeRequestFormSchema,
+    `freeze-request:${membershipId}`,
+    "Requesting the freeze…",
+  );
 
   return (
-    <form
-      ref={formRef}
-      noValidate
-      action={submitTo(run, "freeze-request", "Requesting the freeze…", requestFreezeAction)}
-      onSubmit={onSubmit}
-      className="flex flex-col gap-3"
-    >
+    <form ref={formRef} noValidate onSubmit={onSubmit} className="flex flex-col gap-3">
       <input type="hidden" name="membershipId" value={membershipId} />
       <div className="grid gap-3 sm:grid-cols-2">
         <InputField

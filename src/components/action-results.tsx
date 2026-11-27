@@ -35,10 +35,23 @@ export function describeActionResult(result: ActionOutcome, pending: PendingActi
   return null;
 }
 
+/**
+ * What the results region shows for a form that keeps its own result: its message, never its
+ * field errors (the form shows those on its fields), so an error with only field errors clears it.
+ */
+export function regionOutcome({ status, message, fieldErrors }: ActionOutcome): ActionOutcome {
+  if (message !== undefined) return { status, message };
+  if (status === "error" && fieldErrors && Object.keys(fieldErrors).length > 0) return IDLE;
+  return { status };
+}
+
 type RunRequest = { action: RowAction; formData: FormData };
 type RunOptions = RunRequest & { key: string; pendingMessage: string };
+type ReportRequest = { outcome: ActionOutcome };
 
-async function runRowAction(_previous: ActionOutcome, { action, formData }: RunRequest): Promise<ActionOutcome> {
+async function runRowAction(_previous: ActionOutcome, request: RunRequest | ReportRequest): Promise<ActionOutcome> {
+  if ("outcome" in request) return request.outcome;
+  const { action, formData } = request;
   try {
     return await action(IDLE, formData);
   } catch (error) {
@@ -50,6 +63,13 @@ async function runRowAction(_previous: ActionOutcome, { action, formData }: RunR
 type ActionResultsValue = {
   /** Runs `action` with `formData`; `key` names the trigger, `pendingMessage` shows meanwhile. */
   run: (options: RunOptions) => void;
+  /**
+   * For a form that keeps its own state (`useMembershipForm`) but whose message must outlive it:
+   * call inside the transition that dispatches the form's action, to show `message` meanwhile.
+   */
+  announce: (pending: PendingAction) => void;
+  /** Shows a form's outcome in the results region, without its field errors (`regionOutcome`). */
+  report: (outcome: ActionOutcome) => void;
   /** Key of the action that is running, so its trigger can show a pending state. */
   pendingKey: string | null;
   /** The results region: `finalFocus` for a confirmed action that may remove its own trigger. */
@@ -83,8 +103,14 @@ export function ActionResultsProvider({ children }: { children: ReactNode }) {
     });
   }
 
+  function report(outcome: ActionOutcome) {
+    startTransition(() => dispatch({ outcome: regionOutcome(outcome) }));
+  }
+
   return (
-    <ActionResultsContext value={{ run, pendingKey: pending?.key ?? null, resultsRef, result, pending }}>
+    <ActionResultsContext
+      value={{ run, announce: setPending, report, pendingKey: pending?.key ?? null, resultsRef, result, pending }}
+    >
       {children}
     </ActionResultsContext>
   );

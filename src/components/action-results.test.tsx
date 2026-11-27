@@ -5,6 +5,7 @@ import {
   ActionResults,
   ActionResultsProvider,
   describeActionResult,
+  regionOutcome,
   useActionResults,
   type ActionOutcome,
   type PendingAction,
@@ -57,6 +58,25 @@ describe("describeActionResult", () => {
   it("falls back to a generic retry message", () => {
     expect(describeActionResult({ status: "error" }, null)).toEqual({ tone: "error", text: ACTION_FAILED_MESSAGE });
     expect(describeActionResult({ status: "error", fieldErrors: {} }, null)).toEqual({ tone: "error", text: ACTION_FAILED_MESSAGE });
+  });
+});
+
+describe("regionOutcome", () => {
+  it("keeps a success and its message", () => {
+    expect(regionOutcome({ status: "success", message: "Invite sent." })).toEqual({ status: "success", message: "Invite sent." });
+  });
+
+  it("keeps an error message and leaves the field errors on the form", () => {
+    const outcome: ActionOutcome = { status: "error", message: "Too many attempts.", fieldErrors: { email: "Enter an email." } };
+    expect(regionOutcome(outcome)).toEqual({ status: "error", message: "Too many attempts." });
+  });
+
+  it("clears the region for an error that only has field errors", () => {
+    expect(regionOutcome({ status: "error", fieldErrors: { firstDay: "Start later." } })).toEqual({ status: "idle" });
+  });
+
+  it("keeps a generic error without a message", () => {
+    expect(regionOutcome({ status: "error" })).toEqual({ status: "error" });
   });
 });
 
