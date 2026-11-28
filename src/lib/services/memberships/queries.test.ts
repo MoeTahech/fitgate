@@ -151,15 +151,19 @@ describe("getMyMemberships", () => {
     expect(JSON.stringify(view)).not.toContain(other.membershipId);
   });
 
-  it("shows the owner's payments without notes or references", async () => {
-    const { member, paymentId } = await manualMembership({ note: "Paid at the desk" });
+  it("shows the owner's payments without notes, references, reasons, or staff names", async () => {
+    const { admin, member, paymentId } = await manualMembership({ note: "Paid at the desk" });
+    await refundPayment({ actorId: admin.id, paymentId, amountCents: 1000, reason: "Goodwill" });
 
     signInAs(member);
     const [payment] = (await getMyMemberships()).payments;
 
-    expect(payment).toMatchObject({ id: paymentId, planName: "Basic", status: "SUCCEEDED", amountCents: 3000, paidAt: NOW });
-    expect(payment).not.toHaveProperty("note");
-    expect(payment).not.toHaveProperty("reference");
+    expect(payment).toMatchObject({ id: paymentId, planName: "Basic", status: "PARTIALLY_REFUNDED", amountRefundedCents: 1000, paidAt: NOW });
+    for (const field of ["note", "reference", "voidReason", "refundReason", "recordedByName", "voidedByName", "refundedByName"]) {
+      expect(payment).not.toHaveProperty(field);
+    }
+    expect(JSON.stringify(payment)).not.toContain("Goodwill");
+    expect(JSON.stringify(payment)).not.toContain("Paid at the desk");
   });
 
   it("shows the owner the partner, and the partner the owner but none of the owner's payments", async () => {
@@ -590,6 +594,8 @@ describe("getMemberDetail", () => {
       reason: "PARTNER_SEAT",
     });
     expect(partnerDetail?.payments).toEqual([]);
+    expect(ownerDetail?.memberships[0].extension).toEqual({ priceCents: plan.priceCents, currency: plan.currency, newEnd: expect.any(Date) });
+    expect(partnerDetail?.memberships[0]).toMatchObject({ id: membershipId, seat: { role: "PARTNER" }, extension: null });
 
     const lapsedDetail = await getMemberDetail(lapsed.id);
     expect(lapsedDetail?.recordPayment.openBase).toBeNull();
@@ -684,5 +690,32 @@ describe("listPayments", () => {
     expect(await ids({ to: "2026-12-01" })).toEqual([lateDec1.paymentId]);
     expect(await ids({ from: "2026-12-01" })).toEqual([earlyDec2.paymentId, lateDec1.paymentId]);
     expect((await listPayments({ from: "2026-02-30" })).filters.from).toBeNull();
+  });
+
+  it("includes the whole last local day when it ends a month or a year", async () => {
+    const admin = await createUser({ role: "ADMIN" });
+    vi.setSystemTime(new Date("2026-12-31T19:55:00.000Z"));
+    const lateDec31 = await manualMembership({ admin });
+    vi.setSystemTime(NOW);
+
+    signInAs(admin);
+    const result = await listPayments({ from: "2026-12-31", to: "2026-12-31" });
+    expect(result.payments.map((p) => p.id)).toEqual([lateDec31.paymentId]);
+    expect(result.totals).toEqual([{ currency: "usd", grossCents: 3000, refundedCents: 0, netCents: 3000, count: 1 }]);
+  });
+
+  it("ignores invalid filters and returns an empty list when from is after to", async () => {
+    const admin = await createUser({ role: "ADMIN" });
+    await manualMembership({ admin });
+
+    signInAs(admin);
+    const invalid = await listPayments({ status: "FOO", method: "BAR", from: "garbage", to: "2026-13-45", page: "abc" });
+    expect(invalid.filters).toEqual({ method: null, status: null, from: null, to: null });
+    expect(invalid.page).toBe(1);
+    expect(invalid.total).toBe(1);
+
+    const reversed = await listPayments({ from: "2026-12-10", to: "2026-12-01" });
+    expect(reversed.payments).toEqual([]);
+    expect(reversed.totals).toEqual([]);
   });
 });

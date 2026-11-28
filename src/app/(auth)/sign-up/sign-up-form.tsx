@@ -9,13 +9,15 @@ import { SubmitButton } from "@/components/submit-button";
 import { TextLink } from "@/components/text-link";
 import { authClient } from "@/lib/auth/client";
 import { describeAuthError } from "@/lib/auth/client-errors";
-import { safeRedirectPath, verificationCallbackURL } from "@/lib/auth/redirect";
+import { authPageHref, prefillEmail, safeRedirectPath, verificationCallbackURL } from "@/lib/auth/redirect";
 import { fieldErrors, PASSWORD_MIN_LENGTH, signUpSchema } from "@/lib/auth/schemas";
 import { showFieldErrors } from "@/lib/forms/field-errors";
 import { ResendVerification } from "../resend-verification";
 
 export function SignUpForm() {
-  const next = safeRedirectPath(useSearchParams().get("next"), "/account");
+  const params = useSearchParams();
+  const next = safeRedirectPath(params.get("next"), "/account");
+  const invitedEmail = prefillEmail(params.get("email"));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -65,7 +67,7 @@ export function SignUpForm() {
       footer={
         <>
           Already have an account?{" "}
-          <TextLink href={`/sign-in?next=${encodeURIComponent(next)}`}>
+          <TextLink href={authPageHref("/sign-in", next, invitedEmail)}>
             Sign in
           </TextLink>
         </>
@@ -74,7 +76,16 @@ export function SignUpForm() {
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
         <FormAlert tone="error">{formError}</FormAlert>
         <InputField id="name" name="name" label="Name" autoComplete="name" required error={errors.name} />
-        <InputField id="email" name="email" type="email" label="Email" autoComplete="email" required error={errors.email} />
+        <InputField
+          id="email"
+          name="email"
+          type="email"
+          label="Email"
+          autoComplete="email"
+          defaultValue={invitedEmail}
+          required
+          error={errors.email}
+        />
         <InputField
           id="password"
           name="password"

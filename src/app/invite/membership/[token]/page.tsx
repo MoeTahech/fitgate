@@ -7,6 +7,7 @@ import { SignOutButton } from "@/components/sign-out-button";
 import { TextLink } from "@/components/text-link";
 import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { authPageHref } from "@/lib/auth/redirect";
 import { getSessionUser } from "@/lib/auth/session";
 import { findMembershipInviteByToken } from "@/lib/services/memberships/invites";
 import { AcceptInviteForm } from "./accept-form";
@@ -51,13 +52,13 @@ async function InviteView({ params }: { params: PageProps<"/invite/membership/[t
       <CenteredCard title="You're invited to share a membership" description={description}>
         <div className="flex flex-col gap-3">
           <Link
-            href={`/sign-in?next=${encodeURIComponent(returnTo)}`}
+            href={authPageHref("/sign-in", returnTo, invite.email)}
             className={buttonVariants({ size: "lg" })}
           >
             Sign in to accept
           </Link>
           <Link
-            href={`/sign-up?next=${encodeURIComponent(returnTo)}`}
+            href={authPageHref("/sign-up", returnTo, invite.email)}
             className={buttonVariants({ variant: "outline", size: "lg" })}
           >
             Create an account
@@ -80,7 +81,7 @@ async function InviteView({ params }: { params: PageProps<"/invite/membership/[t
         }
       >
         <SignOutButton
-          redirectTo={`/sign-in?next=${encodeURIComponent(returnTo)}`}
+          redirectTo={authPageHref("/sign-in", returnTo, invite.email)}
           size="lg"
           fullWidth
         />

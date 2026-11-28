@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/auth/session";
-import { ACCOUNT_HREF, ADMIN_NAV, MAIN_NAV, navItemsFor, navLinkVariants } from "./nav";
+import { accountNavItem, ADMIN_NAV, MAIN_NAV, navItemsFor, navLinkVariants } from "./nav";
 import { NavLinks } from "./nav-links";
 import { NavLinksFallback } from "./nav-links-fallback";
 import { MobileNav } from "./mobile-nav";
@@ -23,7 +23,7 @@ async function UserNav() {
   }
 
   const items = navItemsFor(MAIN_NAV, user.role);
-  const desktopItems = [...items, { href: ACCOUNT_HREF, label: user.name }];
+  const desktopItems = [...items, accountNavItem(user.name)];
   return (
     <>
       <nav aria-label="Main" className="hidden items-center gap-1 md:flex">
@@ -34,7 +34,7 @@ async function UserNav() {
       <div className="md:hidden">
         <MobileNav
           userName={user.name}
-          items={[...items, { href: ACCOUNT_HREF, label: "Account" }]}
+          items={[...items, accountNavItem("Account")]}
           adminItems={user.role === "ADMIN" ? ADMIN_NAV : []}
         />
       </div>

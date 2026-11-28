@@ -17,8 +17,8 @@ export function AcceptInviteForm({ token, planName }: { token: string; planName:
         {accepted ? `You've joined the ${planName} membership.` : state.status === "error" ? state.message : null}
       </FormAlert>
       {accepted ? (
-        <TextLink href="/account" className="self-center text-sm">
-          Go to your account
+        <TextLink href="/account/membership" className="self-center text-sm">
+          View your membership
         </TextLink>
       ) : (
         <form action={action} className="flex flex-col gap-4">

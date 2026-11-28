@@ -64,6 +64,11 @@ const UNCOLLECTED_PAYMENT_STATUSES: PaymentStatus[] = ["VOIDED", "PENDING", "FAI
 
 const pageSchema = z.coerce.number().int().min(1).max(10_000).catch(1).default(1);
 
+/** A list's `page` search param as the list queries read it, e.g. for a sign-in return path. */
+export function parseListPage(value: unknown): number {
+  return pageSchema.parse(value);
+}
+
 function pageCount(total: number): number {
   return Math.max(1, Math.ceil(total / LIST_PAGE_SIZE));
 }
@@ -484,6 +489,7 @@ export type AdminMembershipSummary = MembershipStanding & {
   /** The member's seat on it. */
   seat: { role: MemberRole; joinedAt: Date; endedAt: Date | null };
   creditBalance: number | null;
+  /** Set only on the owner's seat: the owner pays an extension, so it is recorded from their page. */
   extension: ExtensionPreview | null;
 };
 
@@ -629,7 +635,7 @@ export async function getMemberDetail(userId: string): Promise<MemberDetail | nu
         owner: m.owner,
         seat: { role: seat.role, joinedAt: seat.joinedAt, endedAt: seat.endedAt },
         creditBalance: balanceOf(m.id),
-        extension: extensionPreview(m, clock, now),
+        extension: seat.role === "OWNER" ? extensionPreview(m, clock, now) : null,
       } satisfies AdminMembershipSummary,
     }))
     .sort((a, b) => Number(b.running) - Number(a.running))
@@ -1056,6 +1062,18 @@ export async function getMembershipDetail(membershipId: string): Promise<Members
     credits,
     audit: audit.map(({ actor, ...entry }) => ({ ...entry, actorName: actor?.name ?? null })),
   };
+}
+
+/**
+ * The currency of a payment, for parsing a refund amount typed in currency units. The form never
+ * sends the currency; null when the payment doesn't exist.
+ */
+export async function getPaymentCurrency(paymentId: string): Promise<string | null> {
+  await requireRole("ADMIN");
+  const parsed = z.uuid().safeParse(paymentId);
+  if (!parsed.success) return null;
+  const payment = await db.payment.findUnique({ where: { id: parsed.data }, select: { currency: true } });
+  return payment?.currency ?? null;
 }
 
 // ─── Admin: payments ─────────────────────────────────────────────────────────

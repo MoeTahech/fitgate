@@ -32,7 +32,8 @@ Example plans: Basic (open access), Premium (open + unlimited classes),
 Day Pass (open access until closing), Class Pack (add-on, see below).
 
 ### Plan periods
-All period math runs in the gym time zone and is DST-safe.
+All period math runs in the gym time zone and is DST-safe. Planned: recurring and
+`ROLLING` periods will end at closing time on their last day (see Membership usage limits).
 - **Recurring:** the period ends `intervalMonths` calendar months after it starts,
   at the same local time (clamped to the last day of a shorter month).
 - **One-time `ROLLING`:** ends `durationDays` later at the same local time
@@ -76,6 +77,8 @@ All period math runs in the gym time zone and is DST-safe.
   - The accepter's verified email must match the invite. Sending an invite never
     reveals whether the email already holds a base seat; that is only checked at
     acceptance and shown to the accepter.
+  - The invite page prefills the invited email on sign-in and sign-up via the URL
+    (`email=` query param). Accepted for now; revisit at deployment for log exposure.
   - The owner or an admin can remove the partner, and the partner can leave; either
     frees the seat. Ending the membership ends all its seats and revokes its pending
     invite.
@@ -189,6 +192,41 @@ Stripe webhooks.
 - The owner or an admin can cancel a freeze before it starts; cancelling an approved
   one undoes the shift. A freeze that has started can't be ended early.
 
+### Membership usage limits (Planned)
+Not built yet. One follow-up PR after the pages PR ("membership usage limits") adds
+limits on partner changes and freezes, and changes how periods end. The constants are
+fixed, not per plan length.
+- **Partner cooldown.** After a Couples partner seat ends (the partner left or the owner
+  removed them), a new partner can join only after `PARTNER_CHANGE_COOLDOWN_DAYS = 15`
+  days. The invite form shows the date from which a partner can be invited. Admins can
+  still remove a partner at any time. Only the membership waits, not the person who
+  left: they can join any other membership right away.
+- **Freeze cap.** At most `MAX_FREEZE_DAYS_PER_YEAR = 60` freeze days per membership over
+  the last 12 months. Approved and completed freezes count; cancelled, rejected, and
+  lapsed requests don't. Each freeze still lasts 1 to 30 days. The freeze request form
+  shows how many freeze days are left.
+- **Freezes only on longer plans.** A per-plan `freezable` flag: false for the monthly
+  plans (Basic, Premium, Couples Basic, Couples Premium), true for the 3-month and yearly
+  plans. Only a membership on a `freezable` plan can be frozen, so the freeze form isn't
+  offered on a monthly plan. A monthly member who wants a break doesn't renew.
+- **Freeze reason category.** A freeze request requires a category: Travel, Injury or
+  illness, Work, or Other. There is no free text, so no health details are stored. The
+  category is shown to admins in the pending freeze queue and on the membership's
+  freezes. It is kept out of audit details, like notes and reasons.
+- **End-of-day period ends.** Recurring and one-time `ROLLING` plans end at the closing
+  time of their last local day instead of at the start's local time. The last day is
+  the one Plan periods gives today (`intervalMonths` months or `durationDays` days after
+  the start day). For example, a Class Trial started 26 Nov at 21:17 is valid until
+  closing on 3 Dec, and a monthly plan recorded 26 Nov at 14:37 is valid until closing
+  on 26 Dec. If the gym is closed on the last day, the period ends at the end of that
+  local day. The period start stays the exact start time. Like `CALENDAR_DAYS` ends, the
+  end is computed from the opening hours and stored; a later change to the opening hours
+  doesn't move it. Day Pass and Gym Trial (`CALENDAR_DAYS`) are unchanged. Extensions
+  and freezes keep moving whole days: an extension moves the last day by the plan's
+  months, a freeze by its length, and the new end is the closing time of the new last
+  day (end of day when closed). The closing time is read when the new end is computed
+  and stored, like Day Pass, so later opening-hour changes don't move it.
+
 ### Manual payments
 Admins can record payments made outside Stripe.
 - Methods: `CASH`, `WHISH`, `OMT`, `BANK_TRANSFER`, `OTHER`, with an optional
@@ -242,6 +280,48 @@ Admins can record payments made outside Stripe.
 - On a membership that has already ended, a correction changes only the payment.
 - Stripe payments are never voided or refunded in the app.
 - All corrections are audit-logged.
+
+### Membership pages
+Built for the manual-payment phase; Stripe checkout comes in milestone 2b.
+- **Member** (`/account/membership`, one column of cards, phone first):
+  - Current memberships show status, period, and credits left when the plan has credits. On
+    a Couples membership the owner manages the partner (invite, resend, withdraw the invite,
+    remove) and the partner can leave. Everyone on a membership sees its freezes, including
+    the reason of a rejected one; the owner requests, withdraws or cancels them.
+  - Free trials: a trial the member can start shows a card and a confirmation dialog (see
+    Free trials; "Not now" cancels). If it can't start only because the gym is closed for
+    the rest of today or the email isn't verified, the card says so; any other ineligible
+    trial is hidden.
+  - "Join at the front desk" lists the active plans (trials excluded) with their prices,
+    while the member holds no current base membership. With no current membership at all,
+    the page tells them to start a trial (if one is offered) or visit the front desk.
+  - Payments (date, plan, amount and refunded amount, method, status, period covered) and
+    past memberships (status, including "Left", end date, period). Members never see
+    who recorded a payment, its reference or note, or void and refund reasons.
+- **Admin Members** (`/admin/members`): search by name or email, with each member's base
+  membership. A member's page shows their profile, a record-payment form (only when a
+  payment can be recorded; the switch confirmation described under Replacing an open base
+  appears only when recording would end another membership), an extend card for each
+  membership that can be extended, their memberships, payments (with recorder and
+  reference) and trials used.
+- **Admin Memberships** (`/admin/memberships`): the pending freeze queue (soonest start
+  first; approve, or reject with an optional reason the member sees) above every
+  membership, filterable by status, plan, source, and "ending in the next 7 days". A
+  membership's page shows its summary, extend card, seats, invites, payments with their
+  full history and the void or refund each still accepts, freezes (approve, reject, or
+  cancel an approved one), credits for credit plans, and its audit trail.
+- **Admin Payments** (`/admin/payments`): every recorded payment, filterable by method,
+  status, and paid date (local days, inclusive), with totals per currency (gross, refunded,
+  net, count) over all payments matching the filters, not just the page. Totals exclude
+  voided, pending, and failed payments. Disputed payments are counted for now; the Stripe
+  milestone revisits that.
+- **Confirmations.** These actions ask in a dialog: void (reason required), refund (amount
+  and reason), reject a freeze (optional reason), cancel an approved freeze, remove a
+  partner, revoke or withdraw an invite, leave a membership, cancel or withdraw a freeze
+  (member), start a trial, and a switch. Approving a freeze asks nothing.
+- **Access.** Each admin page here 404s for members and trainers and redirects signed-out
+  visitors to sign-in. Its read models and actions check the ADMIN role again, and the
+  services check the actor in their transaction.
 
 ### 3. Check-in & occupancy
 - Each member has a QR code in the app containing a short-lived signed token
@@ -375,7 +455,10 @@ indexes live as raw SQL in the migrations.
      2. **UI foundation:** design tokens, shared components, layout (plan in
         `docs/plans/ui-foundation.md`). Done.
      3. Pages PR: member membership page, admin members, memberships, and
-        payments pages.
+        payments pages (plan in `docs/plans/memberships-ui.md`). Done.
+     4. Membership usage limits (Planned): partner cooldown, yearly freeze cap,
+        freezes only on longer plans, a freeze reason category, and end-of-day period
+        ends (see Membership usage limits). One follow-up PR after the pages PR.
    - **2b — Stripe:** Checkout, subscriptions (incl. multi-month plans and promo
      codes), webhooks, Stripe-driven membership status, Stripe purchase of
      couples plans, Stripe membership freezes (pause in Stripe).

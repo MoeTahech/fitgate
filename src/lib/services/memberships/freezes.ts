@@ -18,11 +18,9 @@ import {
   type Tx,
 } from "./internal";
 import { isEnded, isOverdue } from "./rules";
-import { ipHashSchema, localDateSchema, noteSchema, userIdSchema } from "./schemas";
+import { FREEZE_LEAD_DAYS, ipHashSchema, localDateSchema, MAX_FREEZE_DAYS, noteSchema, userIdSchema } from "./schemas";
 
-export const MAX_FREEZE_DAYS = 30;
-/** The first day of a freeze is at least this many local days after today. */
-export const FREEZE_LEAD_DAYS = 2;
+export { FREEZE_LEAD_DAYS, MAX_FREEZE_DAYS };
 
 const OPEN_STATUSES: readonly FreezeStatus[] = ["REQUESTED", "APPROVED"];
 

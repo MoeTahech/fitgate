@@ -170,6 +170,12 @@ export function startOfZonedDay(date: LocalDate, timeZone: string): Date {
   return zonedToInstant({ year: date.year, month: date.month, day: date.day }, timeZone);
 }
 
+/** A local calendar date as YYYY-MM-DD (date inputs, `localDateSchema`). Only the date fields are used. */
+export function isoDate(date: LocalDate): string {
+  const pad = (value: number, length: number) => String(value).padStart(length, "0");
+  return `${pad(date.year, 4)}-${pad(date.month, 2)}-${pad(date.day, 2)}`;
+}
+
 /** Local wall-clock minutes since midnight (0–1439), as opening hours are stored. */
 export function localMinutes(instant: Date, timeZone: string): number {
   const parts = zonedParts(instant, timeZone);

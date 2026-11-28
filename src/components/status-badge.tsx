@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
-import type { InviteStatus, MembershipStatus } from "@/generated/prisma/client";
+import type { FreezeStatus, InviteStatus, MembershipStatus, PaymentStatus } from "@/generated/prisma/client";
 
 export type StatusTone = "active" | "frozen" | "past-due" | "expired" | "cancelled" | "pending";
 
@@ -19,6 +19,11 @@ const MEMBERSHIP_STATUS: Record<MembershipStatus, StatusDisplay> = {
   EXPIRED: { tone: "expired", label: "Expired" },
 };
 
+/** The badge's label, for places that name a status without the pill (e.g. a filter option). */
+export function membershipStatusLabel(status: MembershipStatus): string {
+  return MEMBERSHIP_STATUS[status].label;
+}
+
 export function MembershipStatusBadge({ status }: { status: MembershipStatus }) {
   const { tone, label } = MEMBERSHIP_STATUS[status];
   return <StatusBadge tone={tone}>{label}</StatusBadge>;
@@ -33,5 +38,38 @@ const INVITE_STATUS: Record<InviteStatus, StatusDisplay> = {
 
 export function InviteStatusBadge({ status }: { status: InviteStatus }) {
   const { tone, label } = INVITE_STATUS[status];
+  return <StatusBadge tone={tone}>{label}</StatusBadge>;
+}
+
+const FREEZE_STATUS: Record<FreezeStatus, StatusDisplay> = {
+  REQUESTED: { tone: "pending", label: "Requested" },
+  APPROVED: { tone: "frozen", label: "Approved" },
+  COMPLETED: { tone: "expired", label: "Completed" },
+  REJECTED: { tone: "past-due", label: "Rejected" },
+  CANCELLED: { tone: "cancelled", label: "Cancelled" },
+};
+
+export function FreezeStatusBadge({ status }: { status: FreezeStatus }) {
+  const { tone, label } = FREEZE_STATUS[status];
+  return <StatusBadge tone={tone}>{label}</StatusBadge>;
+}
+
+const PAYMENT_STATUS: Record<PaymentStatus, StatusDisplay> = {
+  SUCCEEDED: { tone: "active", label: "Paid" },
+  PARTIALLY_REFUNDED: { tone: "pending", label: "Partly refunded" },
+  REFUNDED: { tone: "expired", label: "Refunded" },
+  VOIDED: { tone: "cancelled", label: "Voided" },
+  PENDING: { tone: "pending", label: "Pending" },
+  FAILED: { tone: "past-due", label: "Failed" },
+  DISPUTED: { tone: "past-due", label: "Disputed" },
+};
+
+/** The badge's label, for places that name a payment status without the pill (e.g. a filter option). */
+export function paymentStatusLabel(status: PaymentStatus): string {
+  return PAYMENT_STATUS[status].label;
+}
+
+export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {
+  const { tone, label } = PAYMENT_STATUS[status];
   return <StatusBadge tone={tone}>{label}</StatusBadge>;
 }

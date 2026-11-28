@@ -82,7 +82,14 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
 - Code that calls `requireUser`/`requireRole` is tested by mocking `@/lib/auth/session` with the
   real guards over a hoisted user: `vi.mock("@/lib/auth/session", async () => (await
   import("@/lib/auth/guards")).createGuards(async () => session.user))`, with `session` from
-  `vi.hoisted` and reset in `afterEach` (see `memberships/queries.test.ts`).
+  `vi.hoisted` and reset in `afterEach` (see `memberships/queries.test.ts`). `requirePageUser`
+  comes from `createGuards` too, so the mock covers page guards (`src/app/admin/admin-pages.test.tsx`).
+- Server action tests (`actions.test.ts` beside `actions.ts`) call the real action on the test
+  database. Same session mock, but spread the guards module too (`{ ...guards,
+  ...guards.createGuards(...) }`) so `isAuthError` stays; mock `next/cache` (`refresh: vi.fn()`)
+  and `@/lib/request-ip` (`getRequestIp`, `getRequestIpHash`). Build the FormData with the
+  form's field names (dialog fields too) and check every action is refused for the wrong roles
+  and changes nothing (see `src/app/admin/memberships/actions.test.ts`).
 
 ## Architecture
 - `next.config.ts` enables `cacheComponents` and `partialPrefetching`; consult
@@ -116,6 +123,34 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   `listPendingFreezes`, `getMembershipDetail`, `listPayments`). Each calls `requireUser`/
   `requireRole("ADMIN")` first, works out display status from stored dates via the rules (SQL
   status filters mirror `effectiveStatus`), never writes, and returns the gym `timeZone`.
+  `getPaymentCurrency(paymentId)` (admin) gives the refund action a payment's currency; the form
+  never sends it.
+- Membership pages: member `/account/membership` and admin `/admin/members[/[userId]]`,
+  `/admin/memberships[/[id]]`, `/admin/payments`. A page's data component sits in a sibling file
+  (`members-list.tsx`, …) because `page.tsx` may only export what Next allows. An admin one first
+  calls `requirePageUser(returnTo, "ADMIN")` (built in `createGuards`, re-exported by
+  `session.ts`), then a read model that checks the role again; `admin/layout.tsx` checks nothing.
+- Membership server actions: `actions.ts` beside the pages, each `(previous, formData) =>
+  ActionResult` over `runMembershipAction` (`src/lib/membership-actions.ts`, server-only). It checks
+  the actor (`audience: "admin"` means `requireRole("ADMIN")`), parses the FormData with Zod,
+  calls the service with `ipHash`, maps errors to copy, and `refresh()`es on success. `schema` may
+  be a function, built after the admin check from server-side data (the refund schema uses
+  `getPaymentCurrency`). An error on a field not in `visibleFields` (a stale id) becomes the
+  message; `refreshOnError` refreshes a stale page. Invite emails go out after commit.
+- `src/lib/memberships-ui/` (client-safe): `labels.ts`; `display.ts` (period, freeze and
+  correction text, record-payment notice, `paymentHistoryLines`: recorder, reference, note,
+  void/refund who/when/why, admin pages only); `messages.ts` (typed `Record` per audience over
+  every `MembershipErrorCode`, so a new code fails `tsc`); `forms.ts` (schemas shared by client
+  and server, `ActionResult`); `use-membership-form.ts` (`useMembershipForm(action, schema)` for
+  forms with fields: dispatches the action itself so a failed submit keeps what was typed, resets
+  only after success; `onStart`/`onSettled` options hand the pending text and outcome to an
+  `ActionResultsProvider`'s `announce`/`report` when the form may unmount on success, as the member
+  freeze-request and invite forms do).
+- `src/lib/money.ts`: `formatMoney`, `parseAmountToCents` (strict decimal, currency-aware),
+  `centsToAmountInput`. Forms take currency units.
+- `getRequestIp()` (`src/lib/request-ip.ts`): raw client IP, only for `startTrialAction`'s
+  rate-limit identifier (hashed by the limiter). Never store, audit or log it; use
+  `getRequestIpHash()`.
 - Database: schema in `prisma/schema.prisma`, config in `prisma.config.ts`
   (loads `.env` itself; migrations use `DIRECT_URL`, falling back to `DATABASE_URL`).
   Import the client only via `db` from `src/lib/db.ts`. Generated client lives in
@@ -148,19 +183,31 @@ Leave the AGENTS.md block in place (auto-written by `next dev`).
   freely). `src/components/` holds the app components pages use: `PageContainer`,
   `PageHeader`/`SectionHeader`, `CenteredPage`/`CenteredCard` (auth and invite pages; pass
   `focusTitle` on a success view that replaces a form so focus moves to its heading),
-  `FormField`/`InputField`/`SelectField`, `SubmitButton`, `FormAlert` (form-level messages),
+  `FormField`/`InputField`/`SelectField`/`TextareaField`/`CheckboxField` (native, submits without script), `SubmitButton`, `FormAlert` (form-level messages),
   `InlineStatus` (result line next to a row action; both are always-mounted live regions built
   on `LiveRegions`: in client components render them unconditionally and pass the message or
   nothing, and keep them at the same tree position when a success view replaces a form), `TextLink`, `Pagination`, `EmptyState`, `StatusBadge` (+ `MembershipStatusBadge`, `InviteStatusBadge`; each status enum
-  gets a typed tone/label map there), `ConfirmDialog` (destructive or irreversible actions; posts its own hidden form to `action`, or
+  gets a typed tone/label map there; also `FreezeStatusBadge`, `PaymentStatusBadge`), `ConfirmDialog` (destructive or irreversible actions; posts its own hidden form to `action`, or
   submits an existing form via `form` (id); pass `finalFocus` when the action can remove its own
-  trigger, and show row-action results above the list, not in the row),
+  trigger, and show row-action results above the list, not in the row. `fields(formId)` renders
+  inputs in the dialog body; give each control `form={formId}` (the dialog is a portal).
+  `validate(form)` runs on confirm when `fields` is set (failure keeps the dialog open; call
+  `showFieldErrors`), otherwise before opening. `submitValue` makes the confirm button the
+  submitter, so only a confirmed submit carries that name/value (`confirmSwitch`);
+  `open`/`onOpenChange` control it from outside),
+  `ActionResultsProvider` + `ActionResults` + `useActionResults()` (row actions via `run({ key,
+  pendingMessage, action, formData })`; render `<ActionResults />` once above the list and use its
+  `resultsRef` as `finalFocus`, since rows and cards move or unmount after an action; forms with
+  fields use `useMembershipForm` instead), `DetailList` (responsive `dl` grid),
   `DataTable` (record lists: column config; a table when its container is at least `@2xl`
-  wide, a stack of cards below; a `grow` column truncates in table mode with `title`, wraps in
-  card mode); plus primitives `Button`/`buttonVariants` (links styled as buttons), `Card`,
+  wide, a stack of cards below; a `grow` column takes the remaining width and wraps, never
+  truncates, so keep the other columns few and narrow. Table pattern: group secondary details
+  under the main column as muted extra lines, not extra columns, with `stackedLabel: false` on
+  it); plus primitives `Button`/`buttonVariants` (links styled as buttons), `Card`,
   `Skeleton` (Suspense fallbacks).
 - Layout (`src/components/layout/`): `nav.ts` holds the nav config (`MAIN_NAV` with role
-  filters, `ADMIN_NAV`; add new sections there) and link styles. `SiteHeader` (near-black bar,
+  filters, `ADMIN_NAV`; add new sections there; `exact` marks an item active only on its own
+  path, e.g. `/account` vs `/account/membership`) and link styles. `SiteHeader` (near-black bar,
   user part behind `<Suspense>` via `getCurrentUser()`), `MobileNav` (Sheet below `md`, includes
   admin sections for admins), `AdminNav` (sidebar from `md`, used by `src/app/admin/layout.tsx`;
   admin pages render their own `<main>`). `NavLinks` reads `usePathname`, which suspends under

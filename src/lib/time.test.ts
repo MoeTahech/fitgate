@@ -4,6 +4,7 @@ import {
   addMonthsZoned,
   formatLocal,
   formatLocalTime,
+  isoDate,
   localElapsedMs,
   localMinutes,
   startOfZonedDay,
@@ -228,6 +229,17 @@ describe("startOfZonedDay", () => {
   it("uses only the date of zoned parts", () => {
     const parts = zonedParts(at("2027-07-15T12:34:56.789Z"), BEIRUT);
     expect(startOfZonedDay(parts, BEIRUT)).toEqual(at("2027-07-14T21:00:00Z"));
+  });
+});
+
+describe("isoDate", () => {
+  it("pads month and day", () => {
+    expect(isoDate({ year: 2027, month: 3, day: 5 })).toBe("2027-03-05");
+    expect(isoDate({ year: 2026, month: 12, day: 31 })).toBe("2026-12-31");
+  });
+
+  it("formats the local date of zoned parts", () => {
+    expect(isoDate(zonedParts(at("2026-12-31T22:30:00Z"), BEIRUT))).toBe("2027-01-01");
   });
 });
 

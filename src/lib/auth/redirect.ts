@@ -1,3 +1,5 @@
+import { emailSchema } from "./schemas";
+
 const FALLBACK = "/";
 
 /**
@@ -22,4 +24,17 @@ export function safeRedirectPath(value: string | null | undefined, fallback = FA
 /** Where Better Auth sends the user after an email verification link (success or error). */
 export function verificationCallbackURL(next: string): string {
   return `/verify-email?next=${encodeURIComponent(safeRedirectPath(next, "/account"))}`;
+}
+
+/** A valid email from a query parameter (normalised), else undefined; used to prefill sign-in and sign-up. */
+export function prefillEmail(value: string | null | undefined): string | undefined {
+  const parsed = emailSchema.safeParse(value ?? "");
+  return parsed.success ? parsed.data : undefined;
+}
+
+/** Link to the sign-in or sign-up page that returns to `next`, optionally prefilling the email. */
+export function authPageHref(path: "/sign-in" | "/sign-up", next: string, email?: string): string {
+  const params = new URLSearchParams({ next });
+  if (email) params.set("email", email);
+  return `${path}?${params}`;
 }

@@ -2,6 +2,8 @@ import type { ComponentProps, ReactNode } from "react";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 export type FieldControlProps = {
   id: string;
@@ -38,6 +40,41 @@ export function InputField({ id, label, hint, error, ...input }: FieldProps & Om
     <FormField id={id} label={label} hint={hint} error={error}>
       {(control) => <Input {...input} {...control} />}
     </FormField>
+  );
+}
+
+export function TextareaField({ id, label, hint, error, ...textarea }: FieldProps & Omit<ComponentProps<typeof Textarea>, "id">) {
+  return (
+    <FormField id={id} label={label} hint={hint} error={error}>
+      {(control) => <Textarea {...textarea} {...control} />}
+    </FormField>
+  );
+}
+
+/**
+ * A native checkbox with its label beside it, so it submits with the form before any script runs:
+ * checked, it sends `value` (default "on") under `name`. Colored with the brand `primary` token.
+ */
+export function CheckboxField({
+  id,
+  label,
+  className,
+  ...checkbox
+}: { id: string; label: string } & Omit<ComponentProps<"input">, "id" | "type">) {
+  return (
+    <Field orientation="horizontal" className="w-auto items-center">
+      <input
+        {...checkbox}
+        id={id}
+        type="checkbox"
+        data-slot="checkbox"
+        className={cn(
+          "size-4 shrink-0 cursor-pointer rounded-[4px] accent-primary outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+          className,
+        )}
+      />
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+    </Field>
   );
 }
 
